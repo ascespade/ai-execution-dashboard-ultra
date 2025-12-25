@@ -38,9 +38,18 @@ interface ApiConfig {
   headers: Record<string, string>;
 }
 
+// Get base URL and normalize it
+// In Next.js, NEXT_PUBLIC_* variables are available in browser
+const getBaseUrl = (): string => {
+  // @ts-ignore - Next.js makes NEXT_PUBLIC_* available in browser
+  const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+  // Remove trailing slash and /api if present (we'll add /api back for API calls)
+  return envUrl.replace(/\/$/, '').replace(/\/api$/, '');
+};
+
 // Default configuration
 const DEFAULT_CONFIG: ApiConfig = {
-  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api',
+  baseUrl: `${getBaseUrl()}/api`, // API endpoints are under /api
   timeout: 10000,
   retries: 3,
   headers: {
@@ -150,10 +159,16 @@ class UltraSecureApiClient {
     }
   }
 
+  // Get root URL (without /api suffix)
+  private getRootUrl(): string {
+    return this.config.baseUrl.replace(/\/api$/, '');
+  }
+
   // Health Check with CORS diagnostics
-  public async healthCheck(): Promise<{ status: string; cors: boolean; timestamp: string }> {
+  public async healthCheck(): Promise<{ status: string; cors: boolean; timestamp: string; data?: any }> {
     try {
-      const response = await fetch(`${this.config.baseUrl}/health`, {
+      const rootUrl = this.getRootUrl();
+      const response = await fetch(`${rootUrl}/health`, {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -164,10 +179,20 @@ class UltraSecureApiClient {
         'access-control-allow-headers': response.headers.get('access-control-allow-headers'),
       };
 
+      let data = null;
+      if (response.ok) {
+        try {
+          data = await response.json();
+        } catch {
+          // Not JSON, that's OK
+        }
+      }
+
       return {
         status: response.ok ? 'healthy' : 'unhealthy',
         cors: corsHeaders['access-control-allow-origin'] !== null,
         timestamp: new Date().toISOString(),
+        data,
       };
     } catch (error) {
       return {
@@ -175,6 +200,26 @@ class UltraSecureApiClient {
         cors: false,
         timestamp: new Date().toISOString(),
       };
+    }
+  }
+
+  // Get API root info
+  public async getApiInfo(): Promise<{ name?: string; version?: string; status?: string; endpoints?: any }> {
+    try {
+      const rootUrl = this.getRootUrl();
+      const response = await fetch(`${rootUrl}/`, {
+        method: 'GET',
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      throw error;
     }
   }
 
