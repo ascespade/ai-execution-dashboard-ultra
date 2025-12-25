@@ -14,6 +14,7 @@ import {
   PolicyResponseSchema,
   MemoryResponseSchema,
   PluginsResponseSchema,
+  PluginSchema,
   AuditResponseSchema,
   SettingsResponseSchema,
   WebSocketEventSchema,
