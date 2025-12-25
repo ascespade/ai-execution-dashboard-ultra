@@ -1,5 +1,6 @@
 import { QueryClient, QueryFunction, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { z } from 'zod';
 
 // Import all schemas
 import {
@@ -15,6 +16,7 @@ import {
   AuditResponseSchema,
   SettingsResponseSchema,
   WebSocketEventSchema,
+  ApiResponseSchema,
   ApiResponse,
   type OverviewStats,
   type Orchestration,
