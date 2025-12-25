@@ -9,6 +9,7 @@ import {
   OrchestrationResponseSchema,
   AgentsResponseSchema,
   AgentResponseSchema,
+  AgentProfileSchema,
   PoliciesResponseSchema,
   PolicyResponseSchema,
   MemoryResponseSchema,
