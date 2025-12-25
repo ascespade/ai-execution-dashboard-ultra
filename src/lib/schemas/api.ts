@@ -393,7 +393,13 @@ export const SettingsResponseSchema = ApiResponseSchema(
 );
 
 // Type exports
-export type ApiResponse<T> = z.infer<typeof ApiResponseSchema<T>>;
+export type ApiResponse<T> = {
+  success: boolean;
+  data: T;
+  timestamp: string;
+  message?: string;
+  error?: string;
+};
 export type User = z.infer<typeof UserSchema>;
 export type AuthSession = z.infer<typeof AuthSessionSchema>;
 export type OverviewStats = z.infer<typeof OverviewStatsSchema>;
