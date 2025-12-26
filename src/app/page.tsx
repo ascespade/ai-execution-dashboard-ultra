@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ultraSecureApiClient } from '@/lib/api/client';
-import { AlertCircle, CheckCircle2, XCircle, Clock, Database, Plug, Activity, Server, Settings, AlertTriangle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, XCircle, Clock, Database, Plug, Activity, Server, Settings, AlertTriangle, Sparkles, TrendingUp } from 'lucide-react';
 
 // Status types
 type SystemStatus = 'operational' | 'not_ready' | 'down';
@@ -257,11 +257,32 @@ export default function HomePage() {
   const getSystemStatusBadge = (status: SystemStatus) => {
     switch (status) {
       case 'operational':
-        return <Badge variant="success" className="text-base px-4 py-1.5">OPERATIONAL</Badge>;
+        return (
+          <Badge variant="success" className="text-base px-5 py-2 font-semibold shadow-lg shadow-emerald-500/20">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 status-pulse"></div>
+              OPERATIONAL
+            </div>
+          </Badge>
+        );
       case 'not_ready':
-        return <Badge variant="warning" className="text-base px-4 py-1.5">NOT READY</Badge>;
+        return (
+          <Badge variant="warning" className="text-base px-5 py-2 font-semibold shadow-lg shadow-amber-500/20">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></div>
+              NOT READY
+            </div>
+          </Badge>
+        );
       case 'down':
-        return <Badge variant="error" className="text-base px-4 py-1.5">DOWN</Badge>;
+        return (
+          <Badge variant="error" className="text-base px-5 py-2 font-semibold shadow-lg shadow-red-500/20">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse"></div>
+              DOWN
+            </div>
+          </Badge>
+        );
       default:
         return <Badge variant="warning" className="text-base px-4 py-1.5">UNKNOWN</Badge>;
     }
@@ -270,13 +291,13 @@ export default function HomePage() {
   const getStatusIcon = (status: CheckStatus) => {
     switch (status) {
       case 'success':
-        return <CheckCircle2 className="h-5 w-5 text-emerald-400" />;
+        return <CheckCircle2 className="h-6 w-6 text-emerald-400" />;
       case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-amber-400" />;
+        return <AlertTriangle className="h-6 w-6 text-amber-400" />;
       case 'error':
-        return <XCircle className="h-5 w-5 text-red-400" />;
+        return <XCircle className="h-6 w-6 text-red-400" />;
       case 'loading':
-        return <Clock className="h-5 w-5 text-slate-400 animate-spin" />;
+        return <Clock className="h-6 w-6 text-slate-400 animate-spin" />;
     }
   };
 
@@ -305,52 +326,72 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">AI Execution Platform Dashboard</h1>
-          <p className="text-slate-400">Real-time system health and runtime observability</p>
+        <div className="mb-10 fade-in">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl backdrop-blur-sm border border-blue-500/30">
+              <Sparkles className="h-7 w-7 text-blue-400" />
+            </div>
+            <div>
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent">
+                AI Execution Platform
+              </h1>
+              <p className="text-slate-400 text-lg mt-1">Real-time System Health Dashboard</p>
+            </div>
+          </div>
         </div>
 
-        {/* Global System Status */}
-        <Card className="mb-6 bg-slate-800/50 border-slate-700">
-          <CardHeader>
+        {/* Global System Status - Hero Card */}
+        <Card className="mb-8 glass-effect border-slate-700/50 shadow-2xl fade-in">
+          <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Activity className="h-6 w-6 text-slate-400" />
-                <CardTitle className="text-2xl">Global System Status</CardTitle>
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-emerald-500/20 to-blue-500/20 rounded-xl border border-emerald-500/30">
+                  <Activity className="h-6 w-6 text-emerald-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-3xl font-bold">Global System Status</CardTitle>
+                  <CardDescription className="text-slate-300 mt-1 text-base">
+                    {loading ? 'Evaluating system state...' : getSystemStatusExplanation(diagnostics.globalStatus)}
+                  </CardDescription>
+                </div>
               </div>
               {loading ? (
-                <Badge variant="warning">Checking...</Badge>
+                <Badge variant="warning" className="text-base px-5 py-2">Checking...</Badge>
               ) : (
                 getSystemStatusBadge(diagnostics.globalStatus)
               )}
             </div>
-            <CardDescription className="text-slate-400 mt-2">
-              {loading ? 'Evaluating system state...' : getSystemStatusExplanation(diagnostics.globalStatus)}
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-lg">
+              <div className="group flex items-center gap-4 p-5 bg-gradient-to-br from-slate-900/80 to-slate-800/80 rounded-xl border border-slate-700/50 hover:border-emerald-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/10">
                 {getStatusIcon(diagnostics.healthStatus)}
-                <div>
-                  <div className="font-medium">Health Check</div>
-                  <div className={`text-sm ${getStatusColor(diagnostics.healthStatus)}`}>
-                    {diagnostics.healthStatus === 'success' ? 'Healthy' :
-                     diagnostics.healthStatus === 'error' ? 'Unhealthy' : 'Checking...'}
+                <div className="flex-1">
+                  <div className="font-semibold text-lg mb-1">Health Check</div>
+                  <div className={`text-sm font-medium ${getStatusColor(diagnostics.healthStatus)}`}>
+                    {diagnostics.healthStatus === 'success' ? 'All systems healthy' :
+                     diagnostics.healthStatus === 'error' ? 'System unhealthy' : 'Checking status...'}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-lg">
+              <div className="group flex items-center gap-4 p-5 bg-gradient-to-br from-slate-900/80 to-slate-800/80 rounded-xl border border-slate-700/50 hover:border-amber-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/10">
                 {getStatusIcon(diagnostics.readyStatus)}
-                <div>
-                  <div className="font-medium">Readiness Check</div>
-                  <div className={`text-sm ${getStatusColor(diagnostics.readyStatus)}`}>
-                    {diagnostics.readyStatus === 'success' ? 'Ready' :
-                     diagnostics.readyStatus === 'warning' ? 'Not Ready' :
-                     diagnostics.readyStatus === 'error' ? 'Error' : 'Checking...'}
+                <div className="flex-1">
+                  <div className="font-semibold text-lg mb-1">Readiness Check</div>
+                  <div className={`text-sm font-medium ${getStatusColor(diagnostics.readyStatus)}`}>
+                    {diagnostics.readyStatus === 'success' ? 'Ready for requests' :
+                     diagnostics.readyStatus === 'warning' ? 'Not ready yet' :
+                     diagnostics.readyStatus === 'error' ? 'Readiness check failed' : 'Checking status...'}
                   </div>
                 </div>
               </div>
@@ -358,271 +399,284 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        {/* Core Runtime Health */}
-        <Card className="mb-6 bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Server className="h-5 w-5 text-slate-400" />
-              <CardTitle className="text-xl">Core Runtime Health</CardTitle>
-            </div>
-            <CardDescription className="text-slate-400">
-              Kernel, execution path, and runtime exception status
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-12 bg-slate-900/50 rounded-lg animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {diagnostics.healthStatus === 'success' ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-400" />
-                    )}
-                    <span>Kernel Loaded</span>
-                  </div>
-                  <span className={diagnostics.healthStatus === 'success' ? 'text-emerald-400' : 'text-red-400'}>
-                    {diagnostics.healthStatus === 'success' ? 'Active' : 'Inactive'}
-                  </span>
+        {/* Status Cards Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Core Runtime Health */}
+          <Card className="glass-effect border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 fade-in">
+            <CardHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-lg border border-blue-500/30">
+                  <Server className="h-5 w-5 text-blue-400" />
                 </div>
-                <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {diagnostics.readyStatus === 'success' ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                    ) : (
-                      <AlertTriangle className="h-5 w-5 text-amber-400" />
-                    )}
-                    <span>Execution Path Active</span>
-                  </div>
-                  <span className={diagnostics.readyStatus === 'success' ? 'text-emerald-400' : 'text-amber-400'}>
-                    {diagnostics.readyStatus === 'success' ? 'Active' : 'Degraded'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {diagnostics.problems.length === 0 ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-400" />
-                    )}
-                    <span>Runtime Exceptions</span>
-                  </div>
-                  <span className={diagnostics.problems.length === 0 ? 'text-emerald-400' : 'text-red-400'}>
-                    {diagnostics.problems.length === 0 ? 'None' : `${diagnostics.problems.length} issues`}
-                  </span>
-                </div>
+                <CardTitle className="text-xl font-bold">Core Runtime Health</CardTitle>
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Plugin Diagnostics */}
-        <Card className="mb-6 bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Plug className="h-5 w-5 text-slate-400" />
-              <CardTitle className="text-xl">Plugin Diagnostics</CardTitle>
-            </div>
-            <CardDescription className="text-slate-400">
-              Core plugin availability and status
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-12 bg-slate-900/50 rounded-lg animate-pulse" />
-                ))}
-              </div>
-            ) : diagnostics.plugins.length > 0 ? (
-              <div className="space-y-3">
-                    {diagnostics.plugins.map((plugin: PluginStatus, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
+              <CardDescription className="text-slate-300">
+                Kernel, execution path, and runtime status
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-14 bg-slate-900/50 rounded-lg animate-pulse shimmer" />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-emerald-500/30 transition-all">
                     <div className="flex items-center gap-3">
-                      {plugin.available ? (
+                      {diagnostics.healthStatus === 'success' ? (
                         <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                       ) : (
                         <XCircle className="h-5 w-5 text-red-400" />
                       )}
-                      <span>{plugin.name} Plugin</span>
+                      <span className="font-medium">Kernel Loaded</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {plugin.available ? (
-                        <Badge variant="success">Available</Badge>
+                    <Badge variant={diagnostics.healthStatus === 'success' ? 'success' : 'error'}>
+                      {diagnostics.healthStatus === 'success' ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-amber-500/30 transition-all">
+                    <div className="flex items-center gap-3">
+                      {diagnostics.readyStatus === 'success' ? (
+                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                       ) : (
-                        <Badge variant="error">Missing</Badge>
+                        <AlertTriangle className="h-5 w-5 text-amber-400" />
                       )}
+                      <span className="font-medium">Execution Path</span>
                     </div>
+                    <Badge variant={diagnostics.readyStatus === 'success' ? 'success' : 'warning'}>
+                      {diagnostics.readyStatus === 'success' ? 'Active' : 'Degraded'}
+                    </Badge>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-slate-400 text-sm p-3 bg-slate-900/50 rounded-lg">
-                Plugin information unavailable. Check API connectivity.
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-red-500/30 transition-all">
+                    <div className="flex items-center gap-3">
+                      {diagnostics.problems.length === 0 ? (
+                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-400" />
+                      )}
+                      <span className="font-medium">Runtime Exceptions</span>
+                    </div>
+                    <Badge variant={diagnostics.problems.length === 0 ? 'success' : 'error'}>
+                      {diagnostics.problems.length === 0 ? 'None' : `${diagnostics.problems.length} issues`}
+                    </Badge>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Database & Persistence */}
-        <Card className="mb-6 bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Database className="h-5 w-5 text-slate-400" />
-              <CardTitle className="text-xl">Database & Persistence</CardTitle>
-            </div>
-            <CardDescription className="text-slate-400">
-              Database connectivity and persistence layer status
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-12 bg-slate-900/50 rounded-lg animate-pulse" />
-                ))}
+          {/* Plugin Diagnostics */}
+          <Card className="glass-effect border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 fade-in">
+            <CardHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg border border-purple-500/30">
+                  <Plug className="h-5 w-5 text-purple-400" />
+                </div>
+                <CardTitle className="text-xl font-bold">Plugin Diagnostics</CardTitle>
               </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {diagnostics.readyStatus === 'success' ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-400" />
-                    )}
-                    <span>Database Reachable</span>
-                  </div>
-                  <span className={diagnostics.readyStatus === 'success' ? 'text-emerald-400' : 'text-red-400'}>
-                    {diagnostics.readyStatus === 'success' ? 'Connected' : 'Unreachable'}
-                  </span>
+              <CardDescription className="text-slate-300">
+                Core plugin availability and status
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-14 bg-slate-900/50 rounded-lg animate-pulse shimmer" />
+                  ))}
                 </div>
-                <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {diagnostics.readyStatus === 'success' ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                    ) : (
-                      <AlertTriangle className="h-5 w-5 text-amber-400" />
-                    )}
-                    <span>Migrations Applied</span>
-                  </div>
-                  <span className={diagnostics.readyStatus === 'success' ? 'text-emerald-400' : 'text-amber-400'}>
-                    {diagnostics.readyStatus === 'success' ? 'Up to date' : 'Unknown'}
-                  </span>
+              ) : diagnostics.plugins.length > 0 ? (
+                <div className="space-y-3">
+                  {diagnostics.plugins.map((plugin: PluginStatus, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-purple-500/30 transition-all">
+                      <div className="flex items-center gap-3">
+                        {plugin.available ? (
+                          <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-red-400" />
+                        )}
+                        <span className="font-medium">{plugin.name} Plugin</span>
+                      </div>
+                      <Badge variant={plugin.available ? 'success' : 'error'}>
+                        {plugin.available ? 'Available' : 'Missing'}
+                      </Badge>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {diagnostics.readyStatus === 'success' ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-400" />
-                    )}
-                    <span>Persistence Layer</span>
-                  </div>
-                  <span className={diagnostics.readyStatus === 'success' ? 'text-emerald-400' : 'text-red-400'}>
-                    {diagnostics.readyStatus === 'success' ? 'Responding' : 'Not responding'}
-                  </span>
+              ) : (
+                <div className="text-slate-400 text-sm p-4 bg-slate-900/50 rounded-lg border border-slate-700/50">
+                  Plugin information unavailable. Check API connectivity.
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* API Surface */}
-        <Card className="mb-6 bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Activity className="h-5 w-5 text-slate-400" />
-              <CardTitle className="text-xl">API Surface</CardTitle>
-            </div>
-            <CardDescription className="text-slate-400">
-              Endpoint availability and response times
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-2">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="h-10 bg-slate-900/50 rounded animate-pulse" />
-                ))}
+          {/* Database & Persistence */}
+          <Card className="glass-effect border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 fade-in">
+            <CardHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-lg border border-cyan-500/30">
+                  <Database className="h-5 w-5 text-cyan-400" />
+                </div>
+                <CardTitle className="text-xl font-bold">Database & Persistence</CardTitle>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-700">
-                      <th className="text-left p-3 text-slate-400 font-medium">Endpoint</th>
-                      <th className="text-left p-3 text-slate-400 font-medium">Path</th>
-                      <th className="text-left p-3 text-slate-400 font-medium">Status</th>
-                      <th className="text-left p-3 text-slate-400 font-medium">Latency</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {diagnostics.endpoints.map((endpoint: EndpointCheck, idx: number) => (
-                      <tr key={idx} className="border-b border-slate-800">
-                        <td className="p-3">{endpoint.name}</td>
-                        <td className="p-3 text-slate-400 font-mono text-sm">{endpoint.path}</td>
-                        <td className="p-3">
-                          {endpoint.status === 'success' ? (
-                            <Badge variant="success">Online</Badge>
-                          ) : (
-                            <Badge variant="error">Offline</Badge>
-                          )}
-                        </td>
-                        <td className="p-3 text-slate-300">
-                          {endpoint.latency !== undefined ? `${endpoint.latency}ms` : '—'}
-                        </td>
+              <CardDescription className="text-slate-300">
+                Database connectivity and persistence layer
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-14 bg-slate-900/50 rounded-lg animate-pulse shimmer" />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-cyan-500/30 transition-all">
+                    <div className="flex items-center gap-3">
+                      {diagnostics.readyStatus === 'success' ? (
+                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-400" />
+                      )}
+                      <span className="font-medium">Database Reachable</span>
+                    </div>
+                    <Badge variant={diagnostics.readyStatus === 'success' ? 'success' : 'error'}>
+                      {diagnostics.readyStatus === 'success' ? 'Connected' : 'Unreachable'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-cyan-500/30 transition-all">
+                    <div className="flex items-center gap-3">
+                      {diagnostics.readyStatus === 'success' ? (
+                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                      ) : (
+                        <AlertTriangle className="h-5 w-5 text-amber-400" />
+                      )}
+                      <span className="font-medium">Migrations Applied</span>
+                    </div>
+                    <Badge variant={diagnostics.readyStatus === 'success' ? 'success' : 'warning'}>
+                      {diagnostics.readyStatus === 'success' ? 'Up to date' : 'Unknown'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-cyan-500/30 transition-all">
+                    <div className="flex items-center gap-3">
+                      {diagnostics.readyStatus === 'success' ? (
+                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-400" />
+                      )}
+                      <span className="font-medium">Persistence Layer</span>
+                    </div>
+                    <Badge variant={diagnostics.readyStatus === 'success' ? 'success' : 'error'}>
+                      {diagnostics.readyStatus === 'success' ? 'Responding' : 'Not responding'}
+                    </Badge>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* API Surface */}
+          <Card className="glass-effect border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 fade-in">
+            <CardHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-lg border border-emerald-500/30">
+                  <TrendingUp className="h-5 w-5 text-emerald-400" />
+                </div>
+                <CardTitle className="text-xl font-bold">API Surface</CardTitle>
+              </div>
+              <CardDescription className="text-slate-300">
+                Endpoint availability and response times
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="h-12 bg-slate-900/50 rounded animate-pulse shimmer" />
+                  ))}
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-slate-700/50">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-gradient-to-r from-slate-900/80 to-slate-800/80 border-b border-slate-700/50">
+                        <th className="text-left p-4 text-slate-300 font-semibold">Endpoint</th>
+                        <th className="text-left p-4 text-slate-300 font-semibold">Path</th>
+                        <th className="text-left p-4 text-slate-300 font-semibold">Status</th>
+                        <th className="text-left p-4 text-slate-300 font-semibold">Latency</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    </thead>
+                    <tbody>
+                      {diagnostics.endpoints.map((endpoint: EndpointCheck, idx: number) => (
+                        <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-900/30 transition-colors">
+                          <td className="p-4 font-medium">{endpoint.name}</td>
+                          <td className="p-4 text-slate-400 font-mono text-sm">{endpoint.path}</td>
+                          <td className="p-4">
+                            {endpoint.status === 'success' ? (
+                              <Badge variant="success">Online</Badge>
+                            ) : (
+                              <Badge variant="error">Offline</Badge>
+                            )}
+                          </td>
+                          <td className="p-4 text-slate-300 font-medium">
+                            {endpoint.latency !== undefined ? (
+                              <span className={endpoint.latency < 200 ? 'text-emerald-400' : endpoint.latency < 500 ? 'text-amber-400' : 'text-red-400'}>
+                                {endpoint.latency}ms
+                              </span>
+                            ) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Configuration Snapshot */}
-        <Card className="mb-6 bg-slate-800/50 border-slate-700">
+        <Card className="mb-6 glass-effect border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 fade-in">
           <CardHeader>
-            <div className="flex items-center gap-3">
-              <Settings className="h-5 w-5 text-slate-400" />
-              <CardTitle className="text-xl">Configuration Snapshot</CardTitle>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-lg border border-amber-500/30">
+                <Settings className="h-5 w-5 text-amber-400" />
+              </div>
+              <CardTitle className="text-xl font-bold">Configuration Snapshot</CardTitle>
             </div>
-            <CardDescription className="text-slate-400">
+            <CardDescription className="text-slate-300">
               Runtime environment and detected features
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between p-3 bg-slate-900/50 rounded-lg">
-                <span className="text-slate-400">Environment</span>
-                <span className="text-slate-300 font-mono text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex justify-between items-center p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50">
+                <span className="text-slate-300 font-medium">Environment</span>
+                <span className="text-white font-mono text-sm font-semibold px-3 py-1 bg-blue-500/20 rounded border border-blue-500/30">
                   {/* @ts-ignore */}
                   {process.env.NEXT_PUBLIC_APP_ENV || 'development'}
                 </span>
               </div>
-              <div className="flex justify-between p-3 bg-slate-900/50 rounded-lg">
-                <span className="text-slate-400">API Base URL</span>
-                <span className="text-slate-300 font-mono text-xs break-all text-right max-w-md">
+              <div className="flex justify-between items-center p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50">
+                <span className="text-slate-300 font-medium">Metrics Endpoint</span>
+                <Badge variant={diagnostics.metricsAvailable ? 'success' : 'warning'}>
+                  {diagnostics.metricsAvailable ? 'Available' : 'Not available'}
+                </Badge>
+              </div>
+              <div className="md:col-span-2 flex justify-between items-center p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50">
+                <span className="text-slate-300 font-medium">API Base URL</span>
+                <span className="text-slate-200 font-mono text-xs break-all text-right max-w-md px-3 py-1 bg-slate-800/50 rounded border border-slate-700/50">
                   {/* @ts-ignore */}
                   {process.env.NEXT_PUBLIC_API_BASE_URL || 'Not configured'}
                 </span>
               </div>
-              <div className="flex justify-between p-3 bg-slate-900/50 rounded-lg">
-                <span className="text-slate-400">Metrics Endpoint</span>
-                <span className={diagnostics.metricsAvailable ? 'text-emerald-400' : 'text-amber-400'}>
-                  {diagnostics.metricsAvailable ? 'Available' : 'Not available'}
-                </span>
-              </div>
-              <div className="flex justify-between p-3 bg-slate-900/50 rounded-lg">
-                <span className="text-slate-400">Last Checked</span>
-                <span className="text-slate-300">
+              <div className="md:col-span-2 flex justify-between items-center p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50">
+                <span className="text-slate-300 font-medium">Last Checked</span>
+                <span className="text-slate-200 font-medium">
                   {lastChecked ? lastChecked.toLocaleString() : 'Never'}
                 </span>
               </div>
@@ -632,13 +686,15 @@ export default function HomePage() {
 
         {/* Problems & Insights */}
         {(diagnostics.problems.length > 0 || diagnostics.insights.length > 0) && (
-          <Card className="mb-6 bg-slate-800/50 border-slate-700">
+          <Card className="mb-6 glass-effect border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 fade-in">
             <CardHeader>
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 text-slate-400" />
-                <CardTitle className="text-xl">Problems & Insights</CardTitle>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-lg border border-red-500/30">
+                  <AlertCircle className="h-5 w-5 text-red-400" />
+                </div>
+                <CardTitle className="text-xl font-bold">Problems & Insights</CardTitle>
               </div>
-              <CardDescription className="text-slate-400">
+              <CardDescription className="text-slate-300">
                 System issues and diagnostic information
               </CardDescription>
             </CardHeader>
@@ -646,13 +702,13 @@ export default function HomePage() {
               <div className="space-y-4">
                 {diagnostics.problems.length > 0 && (
                   <div>
-                    <h4 className="text-red-400 font-medium mb-2 flex items-center gap-2">
-                      <XCircle className="h-4 w-4" />
+                    <h4 className="text-red-400 font-semibold mb-3 flex items-center gap-2 text-lg">
+                      <XCircle className="h-5 w-5" />
                       Problems ({diagnostics.problems.length})
                     </h4>
                     <ul className="space-y-2">
                       {diagnostics.problems.map((problem: string, idx: number) => (
-                        <li key={idx} className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-300">
+                        <li key={idx} className="p-4 bg-gradient-to-r from-red-500/10 to-red-500/5 border border-red-500/30 rounded-lg text-sm text-red-200 hover:border-red-500/50 transition-all">
                           {problem}
                         </li>
                       ))}
@@ -661,13 +717,13 @@ export default function HomePage() {
                 )}
                 {diagnostics.insights.length > 0 && (
                   <div>
-                    <h4 className="text-amber-400 font-medium mb-2 flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4" />
+                    <h4 className="text-amber-400 font-semibold mb-3 flex items-center gap-2 text-lg">
+                      <AlertTriangle className="h-5 w-5" />
                       Insights
                     </h4>
                     <ul className="space-y-2">
                       {diagnostics.insights.map((insight: string, idx: number) => (
-                        <li key={idx} className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-300">
+                        <li key={idx} className="p-4 bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/30 rounded-lg text-sm text-amber-200 hover:border-amber-500/50 transition-all">
                           {insight}
                         </li>
                       ))}
@@ -680,22 +736,22 @@ export default function HomePage() {
         )}
 
         {/* Refresh Button */}
-        <div className="flex justify-center">
+        <div className="flex justify-center mb-8">
           <button
             onClick={() => {
               setRefreshKey((prev: number) => prev + 1);
             }}
             disabled={loading}
-            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
+            className="group px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all duration-300 flex items-center gap-3 shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:scale-105 disabled:hover:scale-100"
           >
             {loading ? (
               <>
                 <Clock className="h-5 w-5 animate-spin" />
-                Checking...
+                Checking Status...
               </>
             ) : (
               <>
-                <Activity className="h-5 w-5" />
+                <Activity className="h-5 w-5 group-hover:rotate-180 transition-transform duration-500" />
                 Refresh Status
               </>
             )}
