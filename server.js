@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 /**
  * Next.js Standalone Server for Railway
- * Simple wrapper to ensure PORT is set correctly
+ * Simple wrapper to ensure PORT is set correctly and static files are available
  */
+
+const path = require('path');
+const fs = require('fs');
+
+// Save original directory before changing
+const originalDir = __dirname;
 
 // Set PORT from environment or default
 const port = parseInt(process.env.PORT || '3000', 10);
@@ -12,11 +18,7 @@ process.env.PORT = port.toString();
 process.env.HOSTNAME = process.env.HOSTNAME || '0.0.0.0';
 
 // Next.js standalone build creates server.js in .next/standalone
-// We need to change to that directory and run it
-const path = require('path');
-const fs = require('fs');
-
-const standaloneDir = path.join(__dirname, '.next/standalone');
+const standaloneDir = path.join(originalDir, '.next/standalone');
 const standaloneServerPath = path.join(standaloneDir, 'server.js');
 
 if (!fs.existsSync(standaloneServerPath)) {
@@ -24,9 +26,6 @@ if (!fs.existsSync(standaloneServerPath)) {
   console.error('💡 Make sure you have run: npm run build');
   process.exit(1);
 }
-
-// Change to standalone directory (Next.js expects to run from there)
-process.chdir(standaloneDir);
 
 // Helper to copy directory recursively
 function copyRecursiveSync(src, dest) {
@@ -52,8 +51,8 @@ function copyRecursiveSync(src, dest) {
   }
 }
 
-// Copy static files if needed
-const staticSource = path.join(__dirname, '.next/static');
+// Copy static files if needed (using originalDir before chdir)
+const staticSource = path.join(originalDir, '.next/static');
 const staticDest = path.join(standaloneDir, '.next/static');
 
 if (fs.existsSync(staticSource) && !fs.existsSync(staticDest)) {
@@ -70,7 +69,7 @@ if (fs.existsSync(staticSource) && !fs.existsSync(staticDest)) {
 }
 
 // Copy public directory if it exists
-const publicSource = path.join(__dirname, 'public');
+const publicSource = path.join(originalDir, 'public');
 const publicDest = path.join(standaloneDir, 'public');
 
 if (fs.existsSync(publicSource) && !fs.existsSync(publicDest)) {
@@ -83,6 +82,9 @@ if (fs.existsSync(publicSource) && !fs.existsSync(publicDest)) {
 }
 
 console.log(`🚀 Starting Next.js server on port ${port}`);
+
+// Change to standalone directory (Next.js expects to run from there)
+process.chdir(standaloneDir);
 
 // Load and start the standalone server
 try {
