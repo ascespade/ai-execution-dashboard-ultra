@@ -28,17 +28,44 @@ if (!fs.existsSync(standaloneServerPath)) {
 // Change to standalone directory (Next.js expects to run from there)
 process.chdir(standaloneDir);
 
+// Helper to copy directory recursively
+function copyRecursiveSync(src, dest) {
+  if (!fs.existsSync(src)) return;
+  
+  const stats = fs.statSync(src);
+  if (stats.isDirectory()) {
+    if (!fs.existsSync(dest)) {
+      fs.mkdirSync(dest, { recursive: true });
+    }
+    fs.readdirSync(src).forEach((item) => {
+      copyRecursiveSync(
+        path.join(src, item),
+        path.join(dest, item)
+      );
+    });
+  } else {
+    const destDir = path.dirname(dest);
+    if (!fs.existsSync(destDir)) {
+      fs.mkdirSync(destDir, { recursive: true });
+    }
+    fs.copyFileSync(src, dest);
+  }
+}
+
 // Copy static files if needed
 const staticSource = path.join(__dirname, '.next/static');
 const staticDest = path.join(standaloneDir, '.next/static');
 
 if (fs.existsSync(staticSource) && !fs.existsSync(staticDest)) {
-  const { execSync } = require('child_process');
   try {
-    execSync(`cp -r "${staticSource}" "${path.join(standaloneDir, '.next')}"`, { stdio: 'inherit' });
+    const staticDestDir = path.join(standaloneDir, '.next');
+    if (!fs.existsSync(staticDestDir)) {
+      fs.mkdirSync(staticDestDir, { recursive: true });
+    }
+    copyRecursiveSync(staticSource, staticDest);
     console.log('✅ Static files copied');
   } catch (error) {
-    console.warn('⚠️  Could not copy static files automatically');
+    console.warn('⚠️  Could not copy static files:', error.message);
   }
 }
 
@@ -47,12 +74,11 @@ const publicSource = path.join(__dirname, 'public');
 const publicDest = path.join(standaloneDir, 'public');
 
 if (fs.existsSync(publicSource) && !fs.existsSync(publicDest)) {
-  const { execSync } = require('child_process');
   try {
-    execSync(`cp -r "${publicSource}" "${standaloneDir}"`, { stdio: 'inherit' });
+    copyRecursiveSync(publicSource, publicDest);
     console.log('✅ Public directory copied');
   } catch (error) {
-    console.warn('⚠️  Could not copy public directory automatically');
+    console.warn('⚠️  Could not copy public directory:', error.message);
   }
 }
 
