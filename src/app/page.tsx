@@ -600,16 +600,18 @@ export default function HomePage() {
           </div>
 
           {/* Global Status Hero Card */}
-          <Card className="glass-effect border-slate-700/50 shadow-2xl fade-in mb-6">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-gradient-to-br from-emerald-500/20 to-blue-500/20 rounded-xl border border-emerald-500/30">
-                    <Activity className="h-6 w-6 text-emerald-400" />
+          <Card className="glass-effect border-slate-700/50 shadow-2xl card-glow fade-in mb-8">
+            <CardHeader className="pb-6">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-5">
+                  <div className="p-4 bg-gradient-to-br from-emerald-500/25 to-blue-500/25 rounded-2xl border border-emerald-500/40 shadow-lg shadow-emerald-500/20">
+                    <Activity className="h-8 w-8 text-emerald-300" />
                   </div>
                   <div>
-                    <CardTitle className="text-3xl font-bold">System Status</CardTitle>
-                    <CardDescription className="text-slate-300 mt-1 text-base">
+                    <CardTitle className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-white via-emerald-100 to-blue-100 bg-clip-text text-transparent">
+                      System Status
+                    </CardTitle>
+                    <CardDescription className="text-slate-200 mt-2 text-lg font-medium">
                       {loading ? 'Evaluating system state...' : 
                        diagnostics.globalStatus === 'operational' ? 'All systems operational and healthy' :
                        diagnostics.globalStatus === 'degraded' ? 'System operational with degraded performance' :
@@ -619,8 +621,8 @@ export default function HomePage() {
                   </div>
                 </div>
                 {loading ? (
-                  <Badge variant="warning" className="text-base px-5 py-2">
-                    <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  <Badge variant="warning" className="text-lg px-6 py-3 font-bold">
+                    <Clock className="h-5 w-5 mr-2 animate-spin" />
                     Checking...
                   </Badge>
                 ) : (
@@ -629,66 +631,74 @@ export default function HomePage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="group flex items-center gap-4 p-5 bg-gradient-to-br from-slate-900/80 to-slate-800/80 rounded-xl border border-slate-700/50 hover:border-emerald-500/50 transition-all duration-300">
-                  <div className={`p-3 rounded-lg ${diagnostics.healthStatus === 'success' ? 'bg-emerald-500/20' : diagnostics.healthStatus === 'error' ? 'bg-red-500/20' : 'bg-amber-500/20'}`}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="group flex items-center gap-5 p-6 bg-gradient-to-br from-slate-900/90 to-slate-800/90 rounded-2xl border-2 border-slate-700/60 hover:border-emerald-500/60 hover:shadow-xl hover:shadow-emerald-500/20 transition-all duration-300 cursor-pointer">
+                  <div className={`p-4 rounded-xl shadow-lg ${
+                    diagnostics.healthStatus === 'success' ? 'bg-emerald-500/25 border border-emerald-400/40' : 
+                    diagnostics.healthStatus === 'error' ? 'bg-red-500/25 border border-red-400/40' : 
+                    'bg-amber-500/25 border border-amber-400/40'
+                  }`}>
                     {diagnostics.healthStatus === 'success' ? (
-                      <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                      <CheckCircle2 className="h-8 w-8 text-emerald-300" />
                     ) : diagnostics.healthStatus === 'error' ? (
-                      <XCircle className="h-6 w-6 text-red-400" />
+                      <XCircle className="h-8 w-8 text-red-300" />
                     ) : (
-                      <Clock className="h-6 w-6 text-amber-400 animate-spin" />
+                      <Clock className="h-8 w-8 text-amber-300 animate-spin" />
                     )}
                   </div>
                   <div className="flex-1">
-                    <div className="font-semibold text-lg mb-1">Health Check</div>
-                    <div className={`text-sm font-medium ${
-                      diagnostics.healthStatus === 'success' ? 'text-emerald-400' :
-                      diagnostics.healthStatus === 'error' ? 'text-red-400' : 'text-amber-400'
+                    <div className="font-bold text-xl mb-2 text-white">Health Check</div>
+                    <div className={`text-base font-semibold ${
+                      diagnostics.healthStatus === 'success' ? 'text-emerald-300' :
+                      diagnostics.healthStatus === 'error' ? 'text-red-300' : 'text-amber-300'
                     }`}>
                       {diagnostics.healthStatus === 'success' ? 'All systems healthy' :
                        diagnostics.healthStatus === 'error' ? 'System unhealthy' : 'Checking status...'}
                     </div>
                     {diagnostics.uptime && (
-                      <div className="text-xs text-slate-400 mt-1">Uptime: {Math.floor(diagnostics.uptime / 3600)}h {(Math.floor(diagnostics.uptime / 60) % 60)}m</div>
+                      <div className="text-sm text-slate-300 mt-2 font-medium">Uptime: {Math.floor(diagnostics.uptime / 3600)}h {(Math.floor(diagnostics.uptime / 60) % 60)}m</div>
                     )}
                   </div>
                 </div>
-                <div className="group flex items-center gap-4 p-5 bg-gradient-to-br from-slate-900/80 to-slate-800/80 rounded-xl border border-slate-700/50 hover:border-amber-500/50 transition-all duration-300">
-                  <div className={`p-3 rounded-lg ${diagnostics.readyStatus === 'success' ? 'bg-emerald-500/20' : diagnostics.readyStatus === 'error' ? 'bg-red-500/20' : 'bg-amber-500/20'}`}>
+                <div className="group flex items-center gap-5 p-6 bg-gradient-to-br from-slate-900/90 to-slate-800/90 rounded-2xl border-2 border-slate-700/60 hover:border-amber-500/60 hover:shadow-xl hover:shadow-amber-500/20 transition-all duration-300 cursor-pointer">
+                  <div className={`p-4 rounded-xl shadow-lg ${
+                    diagnostics.readyStatus === 'success' ? 'bg-emerald-500/25 border border-emerald-400/40' : 
+                    diagnostics.readyStatus === 'error' ? 'bg-red-500/25 border border-red-400/40' : 
+                    'bg-amber-500/25 border border-amber-400/40'
+                  }`}>
                     {diagnostics.readyStatus === 'success' ? (
-                      <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                      <CheckCircle2 className="h-8 w-8 text-emerald-300" />
                     ) : diagnostics.readyStatus === 'error' ? (
-                      <XCircle className="h-6 w-6 text-red-400" />
+                      <XCircle className="h-8 w-8 text-red-300" />
                     ) : (
-                      <Clock className="h-6 w-6 text-amber-400 animate-spin" />
+                      <Clock className="h-8 w-8 text-amber-300 animate-spin" />
                     )}
                   </div>
                   <div className="flex-1">
-                    <div className="font-semibold text-lg mb-1">Readiness Check</div>
-                    <div className={`text-sm font-medium ${
-                      diagnostics.readyStatus === 'success' ? 'text-emerald-400' :
-                      diagnostics.readyStatus === 'error' ? 'text-red-400' : 'text-amber-400'
+                    <div className="font-bold text-xl mb-2 text-white">Readiness Check</div>
+                    <div className={`text-base font-semibold ${
+                      diagnostics.readyStatus === 'success' ? 'text-emerald-300' :
+                      diagnostics.readyStatus === 'error' ? 'text-red-300' : 'text-amber-300'
                     }`}>
                       {diagnostics.readyStatus === 'success' ? 'Ready for requests' :
                        diagnostics.readyStatus === 'warning' ? 'Not ready yet' :
                        diagnostics.readyStatus === 'error' ? 'Readiness check failed' : 'Checking status...'}
                     </div>
                     {diagnostics.version && (
-                      <div className="text-xs text-slate-400 mt-1">Version: {diagnostics.version}</div>
+                      <div className="text-sm text-slate-300 mt-2 font-medium">Version: {diagnostics.version}</div>
                     )}
                   </div>
                 </div>
-                <div className="group flex items-center gap-4 p-5 bg-gradient-to-br from-slate-900/80 to-slate-800/80 rounded-xl border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300">
-                  <div className="p-3 rounded-lg bg-blue-500/20">
-                    <Server className="h-6 w-6 text-blue-400" />
+                <div className="group flex items-center gap-5 p-6 bg-gradient-to-br from-slate-900/90 to-slate-800/90 rounded-2xl border-2 border-slate-700/60 hover:border-blue-500/60 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 cursor-pointer">
+                  <div className="p-4 rounded-xl shadow-lg bg-blue-500/25 border border-blue-400/40">
+                    <Server className="h-8 w-8 text-blue-300" />
                   </div>
                   <div className="flex-1">
-                    <div className="font-semibold text-lg mb-1">API Endpoints</div>
-                    <div className="text-sm font-medium text-slate-300">
+                    <div className="font-bold text-xl mb-2 text-white">API Endpoints</div>
+                    <div className="text-base font-semibold text-slate-200">
                       {diagnostics.endpoints.filter(e => e.status === 'success').length} / {diagnostics.endpoints.length} online
                     </div>
-                    <div className="text-xs text-slate-400 mt-1">
+                    <div className="text-sm text-slate-300 mt-2 font-medium">
                       Avg latency: {Math.round(diagnostics.endpoints.reduce((acc, e) => acc + (e.latency || 0), 0) / (diagnostics.endpoints.length || 1))}ms
                     </div>
                   </div>

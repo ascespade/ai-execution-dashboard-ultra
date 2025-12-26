@@ -60,10 +60,26 @@
 
 @layer utilities {
   .glass-effect {
-    background: rgba(15, 23, 42, 0.7);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(148, 163, 184, 0.1);
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  }
+  
+  .glass-effect:hover {
+    border-color: rgba(148, 163, 184, 0.4);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+    transform: translateY(-1px);
+    transition: all 0.3s ease;
+  }
+  
+  .card-glow {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.1), 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+  
+  .card-glow:hover {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.2), 0 12px 48px rgba(0, 0, 0, 0.5);
   }
   
   .gradient-border {
