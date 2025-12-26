@@ -160,18 +160,26 @@ class UltraSecureApiClient {
   }
 
   // Get root URL (without /api suffix)
-  private getRootUrl(): string {
+  public getRootUrl(): string {
     return this.config.baseUrl.replace(/\/api$/, '');
   }
 
-  // Health Check with CORS diagnostics
-  public async healthCheck(): Promise<{ status: string; cors: boolean; timestamp: string; data?: any }> {
+  // Health Check with CORS diagnostics and timeout
+  public async healthCheck(): Promise<{ status: 'healthy' | 'unhealthy' | 'error'; cors: boolean; timestamp: string; data?: any; latency?: number }> {
+    const startTime = Date.now();
     try {
       const rootUrl = this.getRootUrl();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+
       const response = await fetch(`${rootUrl}/health`, {
         method: 'GET',
         headers: this.getHeaders(),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
+      const latency = Date.now() - startTime;
 
       const corsHeaders = {
         'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
@@ -193,11 +201,105 @@ class UltraSecureApiClient {
         cors: corsHeaders['access-control-allow-origin'] !== null,
         timestamp: new Date().toISOString(),
         data,
+        latency,
+      };
+    } catch (error) {
+      const latency = Date.now() - startTime;
+      return {
+        status: 'error',
+        cors: false,
+        timestamp: new Date().toISOString(),
+        latency,
+      };
+    }
+  }
+
+  // Ready Check with timeout
+  public async readyCheck(): Promise<{ status: 'ready' | 'not_ready' | 'error'; timestamp: string; latency?: number; data?: any }> {
+    const startTime = Date.now();
+    try {
+      const rootUrl = this.getRootUrl();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+
+      const response = await fetch(`${rootUrl}/ready`, {
+        method: 'GET',
+        headers: this.getHeaders(),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const latency = Date.now() - startTime;
+
+      let data = null;
+      if (response.ok) {
+        try {
+          data = await response.json();
+        } catch {
+          // Not JSON, that's OK
+        }
+      }
+
+      return {
+        status: response.ok ? 'ready' : 'not_ready',
+        timestamp: new Date().toISOString(),
+        latency,
+        data,
+      };
+    } catch (error) {
+      const latency = Date.now() - startTime;
+      return {
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        latency,
+      };
+    }
+  }
+
+  // Check metrics endpoint (optional)
+  public async checkMetrics(): Promise<{ status: 'available' | 'unavailable' | 'error'; timestamp: string; latency?: number }> {
+    const startTime = Date.now();
+    try {
+      const rootUrl = this.getRootUrl();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // Shorter timeout for optional endpoint
+
+      const response = await fetch(`${rootUrl}/metrics`, {
+        method: 'GET',
+        headers: this.getHeaders(),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const latency = Date.now() - startTime;
+
+      return {
+        status: response.ok ? 'available' : 'unavailable',
+        timestamp: new Date().toISOString(),
+        latency,
+      };
+    } catch (error) {
+      const latency = Date.now() - startTime;
+      return {
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        latency,
+      };
+    }
+  }
+
+  // Check plugins endpoint
+  public async checkPlugins(): Promise<{ status: 'available' | 'error'; plugins?: any[]; timestamp: string }> {
+    try {
+      const response = await this.getPlugins();
+      return {
+        status: 'available',
+        plugins: response.data?.plugins || [],
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       return {
         status: 'error',
-        cors: false,
         timestamp: new Date().toISOString(),
       };
     }

@@ -10,7 +10,7 @@ export default function RootLayout({
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>AI Execution Platform - Ultra Dashboard</title>
+        <title>AI Execution Platform Dashboard</title>
       </head>
       <body>{children}</body>
     </html>
