@@ -94,14 +94,24 @@ console.log(`📁 Changed to: ${process.cwd()}`);
 console.log(`📂 Loading server.js from: ${path.join(process.cwd(), 'server.js')}`);
 console.log(`🔧 Environment: PORT=${process.env.PORT}, HOSTNAME=${process.env.HOSTNAME}`);
 
+// Keep process alive
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  process.exit(0);
+});
+
 try {
-  // The standalone server.js will start automatically
+  // The standalone server.js will start automatically and keep the process alive
   require('./server.js');
-  console.log('✅ Server.js module loaded');
-  // Don't exit - let the server run
-  // Next.js server keeps the process alive
+  console.log('✅ Next.js server module loaded and starting...');
+  // The Next.js server keeps the process alive, so we don't need to do anything else
 } catch (error) {
-  console.error('❌ Failed to load server:', error.message);
+  console.error('❌ Failed to load Next.js server:', error.message);
   if (error.stack) {
     console.error('Stack trace:', error.stack);
   }
