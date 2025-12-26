@@ -82,17 +82,22 @@ if (fs.existsSync(publicSource) && !fs.existsSync(publicDest)) {
 }
 
 console.log(`🚀 Starting Next.js server on port ${port}`);
+console.log(`📁 Standalone directory: ${standaloneDir}`);
+console.log(`📁 Current directory: ${__dirname}`);
 
 // Change to standalone directory (Next.js expects to run from there)
 process.chdir(standaloneDir);
+console.log(`📁 Changed to: ${process.cwd()}`);
 
 // Load and start the standalone server
 try {
+  console.log(`📂 Loading server.js from: ${path.join(process.cwd(), 'server.js')}`);
   require('./server.js');
+  console.log('✅ Server.js loaded successfully');
 } catch (error) {
   console.error('❌ Failed to start server:', error.message);
   if (error.stack) {
-    console.error(error.stack);
+    console.error('Stack trace:', error.stack);
   }
   process.exit(1);
 }
