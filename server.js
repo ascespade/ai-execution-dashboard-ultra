@@ -89,13 +89,19 @@ console.log(`📁 Current directory: ${__dirname}`);
 process.chdir(standaloneDir);
 console.log(`📁 Changed to: ${process.cwd()}`);
 
-// Load and start the standalone server
+// Next.js standalone server.js automatically starts when required
+// It reads PORT and HOSTNAME from process.env
+console.log(`📂 Loading server.js from: ${path.join(process.cwd(), 'server.js')}`);
+console.log(`🔧 Environment: PORT=${process.env.PORT}, HOSTNAME=${process.env.HOSTNAME}`);
+
 try {
-  console.log(`📂 Loading server.js from: ${path.join(process.cwd(), 'server.js')}`);
+  // The standalone server.js will start automatically
   require('./server.js');
-  console.log('✅ Server.js loaded successfully');
+  console.log('✅ Server.js module loaded');
+  // Don't exit - let the server run
+  // Next.js server keeps the process alive
 } catch (error) {
-  console.error('❌ Failed to start server:', error.message);
+  console.error('❌ Failed to load server:', error.message);
   if (error.stack) {
     console.error('Stack trace:', error.stack);
   }
