@@ -301,23 +301,56 @@ export default function HomePage() {
       });
     }
 
-    // High latency warnings
-    const slowEndpoints = endpoints.filter(e => e.latency && e.latency > 1000);
-    if (slowEndpoints.length > 0) {
+    // High latency warnings - Only warn if latency is unusually high (>3000ms) 
+    // or if there's significant variance between endpoints (indicates API issue, not network)
+    const LATENCY_THRESHOLD = 3000; // 3 seconds - more reasonable for health checks
+    const LATENCY_VARIANCE_THRESHOLD = 500; // If endpoints vary by >500ms, may indicate API issues
+    
+    const slowEndpoints = endpoints.filter(e => e.latency && e.latency > LATENCY_THRESHOLD);
+    const allLatencies = endpoints.filter(e => e.latency && e.status === 'success').map(e => e.latency!);
+    
+    // Calculate variance to detect if it's network latency (all endpoints slow) vs API issues (variable latency)
+    let hasHighVariance = false;
+    if (allLatencies.length > 1) {
+      const avgLatency = allLatencies.reduce((a, b) => a + b, 0) / allLatencies.length;
+      const variance = allLatencies.reduce((sum, lat) => sum + Math.pow(lat - avgLatency, 2), 0) / allLatencies.length;
+      const stdDev = Math.sqrt(variance);
+      hasHighVariance = stdDev > LATENCY_VARIANCE_THRESHOLD;
+    }
+    
+    // Only show warning if:
+    // 1. Some endpoints exceed threshold AND there's high variance (API issue), OR
+    // 2. All endpoints exceed threshold significantly (>5000ms - definitely a problem)
+    const maxLatency = allLatencies.length > 0 ? Math.max(...allLatencies) : 0;
+    const shouldWarn = (slowEndpoints.length > 0 && hasHighVariance) || maxLatency > 5000;
+    
+    if (shouldWarn && slowEndpoints.length > 0) {
       problems.push({
         id: 'high-latency',
-        severity: 'warning',
-        title: 'High API Response Latency',
-        description: `Some endpoints are responding slowly: ${slowEndpoints.map(e => `${e.name} (${e.latency}ms)`).join(', ')}`,
+        severity: maxLatency > 5000 ? 'critical' : 'warning',
+        title: hasHighVariance 
+          ? 'Inconsistent API Response Latency' 
+          : 'High API Response Latency',
+        description: hasHighVariance
+          ? `Endpoint response times vary significantly, indicating potential API performance issues: ${slowEndpoints.map(e => `${e.name} (${e.latency}ms)`).join(', ')}`
+          : `All endpoints are responding slowly (${Math.round(maxLatency)}ms average), likely due to network latency or system load: ${slowEndpoints.map(e => `${e.name} (${e.latency}ms)`).join(', ')}`,
         component: 'Performance',
         detectedAt: new Date(),
-        solution: 'Optimize endpoint performance and check database query performance.',
-        steps: [
-          'Check database query performance',
+        solution: hasHighVariance
+          ? 'Investigate specific slow endpoints for bottlenecks (database queries, external API calls, etc.)'
+          : 'Check network connectivity, system resources, or consider if this is expected latency for your deployment region.',
+        steps: hasHighVariance ? [
+          'Review logs for the slowest endpoints',
+          'Check database query performance for those endpoints',
           'Review endpoint implementation for bottlenecks',
           'Check system resource usage (CPU, Memory)',
-          'Consider adding caching for frequently accessed data',
-          'Monitor performance metrics over time'
+          'Consider adding caching for frequently accessed data'
+        ] : [
+          'Verify network connectivity between dashboard and API',
+          'Check if this latency is expected for your deployment region',
+          'Monitor system resource usage (CPU, Memory)',
+          'Check Railway deployment logs for performance issues',
+          'Consider geographic proximity of services'
         ],
       });
     }
@@ -331,23 +364,31 @@ export default function HomePage() {
     const insights: string[] = [];
 
     try {
-      // 1. Check /health endpoint
-      const healthResult = await ultraSecureApiClient.healthCheck();
+      // PARALLEL FETCHING: Fetch all health checks simultaneously for better performance
+      const [healthResult, readyResult, pluginsResult, metricsResult] = await Promise.allSettled([
+        ultraSecureApiClient.healthCheck(),
+        ultraSecureApiClient.readyCheck(),
+        ultraSecureApiClient.checkPlugins().catch(() => ({ status: 'error', plugins: [] })),
+        ultraSecureApiClient.checkMetrics().catch(() => ({ status: 'error' }))
+      ]);
+
+      // 1. Process health check result
+      const healthData = healthResult.status === 'fulfilled' ? healthResult.value : null;
       const healthStatus: CheckStatus = 
-        healthResult.status === 'healthy' ? 'success' :
-        healthResult.status === 'unhealthy' ? 'error' : 'error';
+        healthData?.status === 'healthy' ? 'success' :
+        healthData?.status === 'unhealthy' ? 'error' : 'error';
 
       if (healthStatus === 'error') {
         insights.push('Health endpoint is failing. The system may be down or unreachable.');
-      } else if (healthResult.data) {
+      } else if (healthData?.data) {
         insights.push('Health check passed. Core systems are operational.');
       }
 
-      // 2. Check /ready endpoint
-      const readyResult = await ultraSecureApiClient.readyCheck();
+      // 2. Process ready check result
+      const readyData = readyResult.status === 'fulfilled' ? readyResult.value : null;
       const readyStatus: CheckStatus = 
-        readyResult.status === 'ready' ? 'success' :
-        readyResult.status === 'not_ready' ? 'warning' : 'error';
+        readyData?.status === 'ready' ? 'success' :
+        readyData?.status === 'not_ready' ? 'warning' : 'error';
 
       if (readyStatus === 'error') {
         insights.push('Ready endpoint is unreachable. Cannot determine if system is ready.');
@@ -367,65 +408,61 @@ export default function HomePage() {
         globalStatus = 'operational';
       }
 
-      // 4. Check plugins
+      // 4. Process plugins result
       const pluginStatuses: PluginStatus[] = [];
-      try {
-        const pluginsResult = await ultraSecureApiClient.checkPlugins();
-        if (pluginsResult.status === 'available' && pluginsResult.plugins) {
-          pluginsResult.plugins.forEach((p: any) => {
-            pluginStatuses.push({
-              name: p.name || p.id || 'Unknown',
-              available: true,
-              status: p.health?.status || 'healthy',
-              details: p,
-            });
+      const pluginsData = pluginsResult.status === 'fulfilled' ? pluginsResult.value : null;
+      if (pluginsData?.status === 'available' && pluginsData.plugins) {
+        pluginsData.plugins.forEach((p: any) => {
+          pluginStatuses.push({
+            name: p.name || p.id || 'Unknown',
+            available: true,
+            status: p.health?.status || 'healthy',
+            details: p,
           });
-        }
-      } catch (error) {
+        });
+      } else if (pluginsResult.status === 'rejected') {
         insights.push('Unable to check plugin status. Plugin endpoint may be unavailable.');
       }
 
-      // 5. Check additional endpoints
+      // 5. Process metrics result
+      const metricsData = metricsResult.status === 'fulfilled' ? metricsResult.value : null;
+      const metricsAvailable = metricsData?.status === 'available' || false;
+
+      // 6. Check additional endpoints in parallel (already fetched health/ready above)
       const endpointsToCheck: { name: string; path: string }[] = [
         { name: 'Root', path: '/' },
         { name: 'Health', path: '/health' },
         { name: 'Ready', path: '/ready' },
       ];
 
-      let metricsAvailable = false;
-      try {
-        const metricsResult = await ultraSecureApiClient.checkMetrics();
-        metricsAvailable = metricsResult.status === 'available';
-        if (metricsAvailable) {
-          endpointsToCheck.push({ name: 'Metrics', path: '/metrics' });
-        }
-      } catch {
-        // Metrics not available, that's OK
+      if (metricsAvailable) {
+        endpointsToCheck.push({ name: 'Metrics', path: '/metrics' });
       }
 
+      // Parallel endpoint checks (excluding health/ready which we already have latency from)
       const endpointChecks = await Promise.all(
         endpointsToCheck.map(ep => checkEndpoint(ep.name, ep.path))
       );
 
-      // 6. Detect problems
+      // 7. Detect problems
       const detectedProblems = detectProblems(
-        healthResult.data,
-        readyResult.data,
+        healthData?.data,
+        readyData?.data,
         pluginStatuses,
         endpointChecks
       );
       problems.push(...detectedProblems);
 
-      // 7. Extract additional info
-      const uptime = healthResult.data?.uptime;
-      const version = healthResult.data?.version;
+      // 8. Extract additional info
+      const uptime = healthData?.data?.uptime;
+      const version = healthData?.data?.version;
 
       setDiagnostics({
         globalStatus,
         healthStatus,
         readyStatus,
-        healthData: healthResult.data,
-        readyData: readyResult.data,
+        healthData: healthData?.data,
+        readyData: readyData?.data,
         plugins: pluginStatuses,
         endpoints: endpointChecks,
         metricsAvailable,

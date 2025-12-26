@@ -50,8 +50,8 @@ const getBaseUrl = (): string => {
 // Default configuration
 const DEFAULT_CONFIG: ApiConfig = {
   baseUrl: `${getBaseUrl()}/api`, // API endpoints are under /api
-  timeout: 10000,
-  retries: 3,
+  timeout: 8000, // Reduced from 10s to 8s (health checks should be fast with caching)
+  retries: 2, // Reduced retries for faster failure detection
   headers: {
     'Content-Type': 'application/json',
   },
@@ -662,7 +662,8 @@ export function useOverview() {
     queryKey: ['overview'],
     queryFn: () => ultraSecureApiClient.getOverview(),
     refetchInterval: 30000, // Refetch every 30 seconds
-    staleTime: 10000, // Consider stale after 10 seconds
+    staleTime: 15000, // Consider stale after 15 seconds (increased for better caching)
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
   });
 }
 
