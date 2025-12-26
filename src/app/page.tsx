@@ -563,37 +563,37 @@ export default function HomePage() {
         {/* Header */}
         <div className="mb-8 fade-in">
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl backdrop-blur-sm border border-blue-500/30">
-                <Sparkles className="h-8 w-8 text-blue-400" />
+            <div className="flex items-center gap-5">
+              <div className="p-4 bg-gradient-to-br from-blue-500/30 to-purple-500/30 rounded-2xl backdrop-blur-sm border-2 border-blue-500/40 shadow-lg shadow-blue-500/20">
+                <Sparkles className="h-10 w-10 text-blue-300" />
               </div>
               <div>
-                <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent">
+                <h1 className="text-6xl font-extrabold bg-gradient-to-r from-white via-blue-200 to-purple-200 bg-clip-text text-transparent leading-tight mb-2">
                   AI Execution Platform
                 </h1>
-                <p className="text-slate-400 text-lg mt-1">Real-time System Health & Performance Dashboard</p>
+                <p className="text-slate-300 text-xl mt-2 font-medium">Real-time System Health & Performance Dashboard</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`px-4 py-2 rounded-lg border transition-all ${
+                className={`px-5 py-3 rounded-xl border-2 transition-all font-semibold ${
                   autoRefresh
-                    ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
-                    : 'bg-slate-800/50 border-slate-700 text-slate-400'
+                    ? 'bg-emerald-500/25 border-emerald-500/40 text-emerald-300 shadow-lg shadow-emerald-500/20'
+                    : 'bg-slate-800/70 border-slate-600/50 text-slate-400 hover:border-slate-500'
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <RefreshCw className={`h-4 w-4 ${autoRefresh ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-5 w-5 ${autoRefresh ? 'animate-spin' : ''}`} />
                   Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
                 </div>
               </button>
               <button
                 onClick={() => setRefreshKey(prev => prev + 1)}
                 disabled={loading}
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all flex items-center gap-2 shadow-lg"
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-xl hover:shadow-2xl hover:scale-105 disabled:hover:scale-100"
               >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
               </button>
             </div>
