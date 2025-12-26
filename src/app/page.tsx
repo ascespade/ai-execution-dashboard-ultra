@@ -30,6 +30,7 @@ interface EndpointCheck {
 
 interface PluginStatus {
   name: string;
+  id?: string;
   available: boolean;
   status?: 'healthy' | 'degraded' | 'critical' | 'loading';
   error?: string;
