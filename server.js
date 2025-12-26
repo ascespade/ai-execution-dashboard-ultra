@@ -81,14 +81,18 @@ try {
   // Change to standalone directory to ensure correct paths
   const standaloneDir = path.join(__dirname, '.next/standalone');
   const originalCwd = process.cwd();
+  
+  // Change directory before requiring
   process.chdir(standaloneDir);
   
   // Next.js standalone server expects PORT to be set and runs from standalone directory
   // The server.js in standalone directory will handle static files automatically
-  require('./server.js');
+  // We need to require with the full path or relative to new cwd
+  const serverPath = path.join(standaloneDir, 'server.js');
+  require(serverPath);
   
-  // Restore original working directory (not critical, but clean)
-  process.chdir(originalCwd);
+  console.log(`✅ Server loaded successfully`);
+  
 } catch (error) {
   console.error('❌ Failed to load standalone server:', error.message);
   if (error.stack) {
