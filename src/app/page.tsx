@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 
 // Force dynamic rendering - this page uses client-side hooks and cannot be statically generated
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ultraSecureApiClient, useOverview, useAgents, useOrchestrations, usePlugins } from '@/lib/api/client';
