@@ -562,38 +562,38 @@ export default function HomePage() {
       <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
         {/* Header */}
         <div className="mb-8 fade-in">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-5">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
+            <div className="flex items-center gap-5 flex-shrink-0">
               <div className="p-4 bg-gradient-to-br from-blue-500/30 to-purple-500/30 rounded-2xl backdrop-blur-sm border-2 border-blue-500/40 shadow-lg shadow-blue-500/20">
                 <Sparkles className="h-10 w-10 text-blue-300" />
               </div>
               <div>
-                <h1 className="text-6xl font-extrabold bg-gradient-to-r from-white via-blue-200 to-purple-200 bg-clip-text text-transparent leading-tight mb-2">
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold bg-gradient-to-r from-white via-blue-200 to-purple-200 bg-clip-text text-transparent leading-tight mb-2">
                   AI Execution Platform
                 </h1>
-                <p className="text-slate-300 text-xl mt-2 font-medium">Real-time System Health & Performance Dashboard</p>
+                <p className="text-slate-300 text-lg md:text-xl mt-2 font-medium">Real-time System Health & Performance Dashboard</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-shrink-0">
               <button
                 onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`px-5 py-3 rounded-xl border-2 transition-all font-semibold ${
+                className={`px-4 md:px-5 py-2 md:py-3 rounded-xl border-2 transition-all font-semibold text-sm md:text-base whitespace-nowrap ${
                   autoRefresh
                     ? 'bg-emerald-500/25 border-emerald-500/40 text-emerald-300 shadow-lg shadow-emerald-500/20'
                     : 'bg-slate-800/70 border-slate-600/50 text-slate-400 hover:border-slate-500'
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <RefreshCw className={`h-5 w-5 ${autoRefresh ? 'animate-spin' : ''}`} />
-                  Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
+                  <RefreshCw className={`h-4 w-4 md:h-5 md:w-5 ${autoRefresh ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Auto-refresh </span>{autoRefresh ? 'ON' : 'OFF'}
                 </div>
               </button>
               <button
                 onClick={() => setRefreshKey(prev => prev + 1)}
                 disabled={loading}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-xl hover:shadow-2xl hover:scale-105 disabled:hover:scale-100"
+                className="px-5 md:px-6 py-2 md:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-xl hover:shadow-2xl hover:scale-105 disabled:hover:scale-100 text-sm md:text-base"
               >
-                <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 md:h-5 md:w-5 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
               </button>
             </div>
@@ -602,16 +602,16 @@ export default function HomePage() {
           {/* Global Status Hero Card */}
           <Card className="glass-effect border-slate-700/50 shadow-2xl card-glow fade-in mb-8">
             <CardHeader className="pb-6">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-5">
-                  <div className="p-4 bg-gradient-to-br from-emerald-500/25 to-blue-500/25 rounded-2xl border border-emerald-500/40 shadow-lg shadow-emerald-500/20">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-5 flex-1">
+                  <div className="p-4 bg-gradient-to-br from-emerald-500/25 to-blue-500/25 rounded-2xl border border-emerald-500/40 shadow-lg shadow-emerald-500/20 flex-shrink-0">
                     <Activity className="h-8 w-8 text-emerald-300" />
                   </div>
-                  <div>
-                    <CardTitle className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-white via-emerald-100 to-blue-100 bg-clip-text text-transparent">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-3xl md:text-4xl font-extrabold mb-2 bg-gradient-to-r from-white via-emerald-100 to-blue-100 bg-clip-text text-transparent">
                       System Status
                     </CardTitle>
-                    <CardDescription className="text-slate-200 mt-2 text-lg font-medium">
+                    <CardDescription className="text-slate-200 mt-2 text-base md:text-lg font-medium">
                       {loading ? 'Evaluating system state...' : 
                        diagnostics.globalStatus === 'operational' ? 'All systems operational and healthy' :
                        diagnostics.globalStatus === 'degraded' ? 'System operational with degraded performance' :
@@ -620,14 +620,16 @@ export default function HomePage() {
                     </CardDescription>
                   </div>
                 </div>
-                {loading ? (
-                  <Badge variant="warning" className="text-lg px-6 py-3 font-bold">
-                    <Clock className="h-5 w-5 mr-2 animate-spin" />
-                    Checking...
-                  </Badge>
-                ) : (
-                  getSystemStatusBadge(diagnostics.globalStatus)
-                )}
+                <div className="flex-shrink-0">
+                  {loading ? (
+                    <Badge variant="warning" className="text-base md:text-lg px-5 md:px-6 py-2 md:py-3 font-bold w-full md:w-auto justify-center">
+                      <Clock className="h-4 w-4 md:h-5 md:w-5 mr-2 animate-spin" />
+                      Checking...
+                    </Badge>
+                  ) : (
+                    getSystemStatusBadge(diagnostics.globalStatus)
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>
