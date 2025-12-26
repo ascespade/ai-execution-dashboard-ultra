@@ -156,16 +156,33 @@ export default function HomePage() {
     }
 
     // Readiness check failures
-    if (!readyData || readyData.ready !== true) {
+    // Check if readyData exists and what status it indicates
+    const isReady = readyData?.ready === true || readyData?.status === 'ready';
+    const isNotReady = readyData?.ready === false || readyData?.status === 'not_ready';
+    
+    if (!isReady) {
+      // If we have explicit not_ready status, it's a warning (system starting up)
+      // If readyData is missing or error, it's critical
+      const severity = isNotReady ? 'warning' : 'critical';
       problems.push({
         id: 'readiness-failure',
-        severity: readyData?.ready === false ? 'warning' : 'critical',
+        severity,
         title: 'System Not Ready',
-        description: 'The system readiness check indicates dependencies are not fully initialized.',
+        description: isNotReady 
+          ? 'The system readiness check indicates dependencies are initializing. This is normal during startup.'
+          : 'The system readiness check indicates dependencies are not fully initialized or the check failed.',
         component: 'System Initialization',
         detectedAt: new Date(),
-        solution: 'Wait for dependencies to initialize or check dependency health.',
-        steps: [
+        solution: isNotReady
+          ? 'Wait for dependencies to finish initializing. This usually takes 1-2 minutes after deployment.'
+          : 'Wait for dependencies to initialize or check dependency health.',
+        steps: isNotReady ? [
+          'Wait 1-2 minutes for initialization to complete',
+          'Monitor readiness endpoint: GET /ready',
+          'Check Railway logs for initialization progress',
+          'Verify database connection is established',
+          'Ensure all plugins are loaded successfully'
+        ] : [
           'Check database migration status',
           'Verify all required plugins are loaded',
           'Check external service connectivity',
