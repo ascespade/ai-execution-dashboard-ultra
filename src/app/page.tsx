@@ -217,12 +217,29 @@ export default function HomePage() {
     }
 
     // Missing critical plugins
-    const criticalPlugins = ['store', 'supervisor', 'memory'];
-    const missingPlugins = criticalPlugins.filter(pluginName => 
-      !plugins.some(p => p.name.toLowerCase().includes(pluginName))
-    );
+    // Check for plugins with flexible matching (store-postgres, supervisor-postgres, memory-stm-db, etc.)
+    const criticalPlugins = [
+      { name: 'store', patterns: ['store', 'store-postgres', 'database-postgres'] },
+      { name: 'supervisor', patterns: ['supervisor', 'supervisor-postgres'] },
+      { name: 'memory', patterns: ['memory', 'memory-stm', 'memory-stm-db'] }
+    ];
+    
+    const missingPlugins: string[] = [];
+    const foundPluginNames = plugins.map(p => (p.name || p.id || '').toLowerCase());
+    
+    criticalPlugins.forEach(({ name, patterns }) => {
+      const found = patterns.some(pattern => 
+        foundPluginNames.some(foundName => 
+          foundName.includes(pattern.toLowerCase())
+        )
+      );
+      if (!found) {
+        missingPlugins.push(name);
+      }
+    });
 
-    if (missingPlugins.length > 0) {
+    if (missingPlugins.length > 0 && plugins.length > 0) {
+      // Only report as critical if we successfully fetched plugins but some are missing
       problems.push({
         id: 'missing-plugins',
         severity: 'critical',
@@ -236,9 +253,13 @@ export default function HomePage() {
           'Verify plugins are loaded during startup',
           'Check plugin initialization logs',
           'Restart API service to reload plugins',
-          'Verify plugin configuration is correct'
+          'Verify plugin configuration is correct',
+          `Available plugins: ${foundPluginNames.join(', ') || 'None detected'}`
         ],
       });
+    } else if (missingPlugins.length > 0 && plugins.length === 0) {
+      // If we couldn't fetch plugins at all, it might be a different issue
+      // Don't add this as a separate problem since it's likely covered by readiness check
     }
 
     // Endpoint failures
