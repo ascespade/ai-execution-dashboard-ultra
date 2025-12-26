@@ -710,26 +710,28 @@ export default function HomePage() {
 
         {/* Stats Grid */}
         {!overviewLoading && stats.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 fade-in">
             {stats.map((stat, idx) => (
-              <Card key={idx} className="glass-effect border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-400">{stat.title}</CardTitle>
-                  <div className={stat.color}>{stat.icon}</div>
+              <Card key={idx} className="glass-effect border-slate-700/50 shadow-xl card-glow hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 cursor-pointer group">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                  <CardTitle className="text-sm font-semibold text-slate-300 uppercase tracking-wider">{stat.title}</CardTitle>
+                  <div className={`${stat.color} p-2 rounded-lg bg-slate-800/50 group-hover:scale-110 transition-transform`}>
+                    {stat.icon}
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stat.value}</div>
+                  <div className="text-3xl font-extrabold mb-2 text-white">{stat.value}</div>
                   {stat.subtitle && (
-                    <p className="text-xs text-slate-400 mt-1">{stat.subtitle}</p>
+                    <p className="text-sm text-slate-300 mt-1 font-medium">{stat.subtitle}</p>
                   )}
                   {stat.change !== undefined && (
-                    <div className={`flex items-center text-xs mt-2 ${
-                      stat.trend === 'up' ? 'text-emerald-400' :
-                      stat.trend === 'down' ? 'text-red-400' : 'text-slate-400'
+                    <div className={`flex items-center text-sm mt-3 font-semibold ${
+                      stat.trend === 'up' ? 'text-emerald-300' :
+                      stat.trend === 'down' ? 'text-red-300' : 'text-slate-400'
                     }`}>
-                      {stat.trend === 'up' ? <ArrowUpRight className="h-3 w-3 mr-1" /> :
-                       stat.trend === 'down' ? <ArrowDownRight className="h-3 w-3 mr-1" /> :
-                       <Minus className="h-3 w-3 mr-1" />}
+                      {stat.trend === 'up' ? <ArrowUpRight className="h-4 w-4 mr-1" /> :
+                       stat.trend === 'down' ? <ArrowDownRight className="h-4 w-4 mr-1" /> :
+                       <Minus className="h-4 w-4 mr-1" />}
                       {typeof stat.change === 'number' ? `${stat.change > 0 ? '+' : ''}${stat.change}` : stat.change}
                     </div>
                   )}
