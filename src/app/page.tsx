@@ -1,14 +1,20 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ultraSecureApiClient } from '@/lib/api/client';
-import { AlertCircle, CheckCircle2, XCircle, Clock, Database, Plug, Activity, Server, Settings, AlertTriangle, Sparkles, TrendingUp } from 'lucide-react';
+import { ultraSecureApiClient, useOverview, useAgents, useOrchestrations, usePlugins } from '@/lib/api/client';
+import { 
+  AlertCircle, CheckCircle2, XCircle, Clock, Database, Plug, Activity, Server, Settings, 
+  AlertTriangle, Sparkles, TrendingUp, Zap, Shield, Brain, Cpu, HardDrive, Network, 
+  BarChart3, DollarSign, Users, ListChecks, Lightbulb, Wrench, RefreshCw, 
+  ArrowUpRight, ArrowDownRight, Minus, Info
+} from 'lucide-react';
 
-// Status types
-type SystemStatus = 'operational' | 'not_ready' | 'down';
+// Types
+type SystemStatus = 'operational' | 'degraded' | 'critical' | 'down';
 type CheckStatus = 'success' | 'warning' | 'error' | 'loading';
+type Severity = 'critical' | 'warning' | 'info' | 'success';
 
 interface EndpointCheck {
   name: string;
@@ -22,7 +28,21 @@ interface EndpointCheck {
 interface PluginStatus {
   name: string;
   available: boolean;
+  status?: 'healthy' | 'degraded' | 'critical' | 'loading';
   error?: string;
+  details?: any;
+}
+
+interface Problem {
+  id: string;
+  severity: Severity;
+  title: string;
+  description: string;
+  component: string;
+  detectedAt: Date;
+  solution: string;
+  steps: string[];
+  related?: string[];
 }
 
 interface SystemDiagnostics {
@@ -34,8 +54,20 @@ interface SystemDiagnostics {
   plugins: PluginStatus[];
   endpoints: EndpointCheck[];
   metricsAvailable: boolean;
-  problems: string[];
+  problems: Problem[];
   insights: string[];
+  uptime?: number;
+  version?: string;
+}
+
+interface StatCard {
+  title: string;
+  value: string | number;
+  change?: number;
+  trend?: 'up' | 'down' | 'neutral';
+  icon: React.ReactNode;
+  color: string;
+  subtitle?: string;
 }
 
 export default function HomePage() {
@@ -52,12 +84,18 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+
+  // React Query hooks
+  const { data: overview, isLoading: overviewLoading } = useOverview();
+  const { data: agentsData, isLoading: agentsLoading } = useAgents({ limit: 10 });
+  const { data: orchestrationsData, isLoading: orchestrationsLoading } = useOrchestrations({ limit: 10 });
+  const { data: pluginsData, isLoading: pluginsLoading } = usePlugins();
 
   const checkEndpoint = async (name: string, path: string): Promise<EndpointCheck> => {
     const startTime = Date.now();
     try {
       const rootUrl = ultraSecureApiClient.getRootUrl();
-      
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -91,9 +129,163 @@ export default function HomePage() {
     }
   };
 
+  const detectProblems = (healthData: any, readyData: any, plugins: PluginStatus[], endpoints: EndpointCheck[]): Problem[] => {
+    const problems: Problem[] = [];
+
+    // Health check failures
+    if (!healthData || healthData.status !== 'healthy') {
+      problems.push({
+        id: 'health-failure',
+        severity: 'critical',
+        title: 'Health Check Failed',
+        description: 'The system health endpoint is not responding correctly. This indicates core system issues.',
+        component: 'Core System',
+        detectedAt: new Date(),
+        solution: 'Restart the API service and check system logs for errors.',
+        steps: [
+          'Check Railway logs for the API service',
+          'Verify database connectivity',
+          'Check Redis connection status',
+          'Restart the API service if needed',
+          'Monitor health endpoint for recovery'
+        ],
+      });
+    }
+
+    // Readiness check failures
+    if (!readyData || readyData.ready !== true) {
+      problems.push({
+        id: 'readiness-failure',
+        severity: readyData?.ready === false ? 'warning' : 'critical',
+        title: 'System Not Ready',
+        description: 'The system readiness check indicates dependencies are not fully initialized.',
+        component: 'System Initialization',
+        detectedAt: new Date(),
+        solution: 'Wait for dependencies to initialize or check dependency health.',
+        steps: [
+          'Check database migration status',
+          'Verify all required plugins are loaded',
+          'Check external service connectivity',
+          'Review initialization logs',
+          'Wait for automatic recovery (usually 1-2 minutes)'
+        ],
+      });
+    }
+
+    // Database connectivity issues
+    if (healthData?.checks?.database === false) {
+      problems.push({
+        id: 'database-connection',
+        severity: 'critical',
+        title: 'Database Connection Failed',
+        description: 'The system cannot connect to the PostgreSQL database.',
+        component: 'Database',
+        detectedAt: new Date(),
+        solution: 'Check database service status and connection string.',
+        steps: [
+          'Verify PostgreSQL service is running in Railway',
+          'Check DATABASE_URL environment variable',
+          'Verify database credentials are correct',
+          'Check network connectivity between services',
+          'Review database service logs'
+        ],
+        related: ['readiness-failure'],
+      });
+    }
+
+    // Redis connectivity issues
+    if (healthData?.checks?.redis === false) {
+      problems.push({
+        id: 'redis-connection',
+        severity: 'warning',
+        title: 'Redis Cache Unavailable',
+        description: 'The system cannot connect to Redis cache. Performance may be degraded.',
+        component: 'Cache',
+        detectedAt: new Date(),
+        solution: 'Check Redis service status. System will work without cache but with reduced performance.',
+        steps: [
+          'Verify Redis service is running in Railway',
+          'Check REDIS_URL environment variable',
+          'Verify Redis credentials',
+          'System will continue operating without cache',
+          'Check Redis service logs for details'
+        ],
+      });
+    }
+
+    // Missing critical plugins
+    const criticalPlugins = ['store', 'supervisor', 'memory'];
+    const missingPlugins = criticalPlugins.filter(pluginName => 
+      !plugins.some(p => p.name.toLowerCase().includes(pluginName))
+    );
+
+    if (missingPlugins.length > 0) {
+      problems.push({
+        id: 'missing-plugins',
+        severity: 'critical',
+        title: `Missing Critical Plugins: ${missingPlugins.join(', ')}`,
+        description: `Required plugins are not available: ${missingPlugins.join(', ')}. Core functionality may be impaired.`,
+        component: 'Plugins',
+        detectedAt: new Date(),
+        solution: 'Ensure all required plugins are properly installed and initialized.',
+        steps: [
+          'Check plugin installation in package.json',
+          'Verify plugins are loaded during startup',
+          'Check plugin initialization logs',
+          'Restart API service to reload plugins',
+          'Verify plugin configuration is correct'
+        ],
+      });
+    }
+
+    // Endpoint failures
+    const failedEndpoints = endpoints.filter(e => e.status === 'error');
+    if (failedEndpoints.length > 0) {
+      problems.push({
+        id: 'endpoint-failures',
+        severity: failedEndpoints.length === endpoints.length ? 'critical' : 'warning',
+        title: `${failedEndpoints.length} Endpoint(s) Unreachable`,
+        description: `The following endpoints are not responding: ${failedEndpoints.map(e => e.name).join(', ')}`,
+        component: 'API Surface',
+        detectedAt: new Date(),
+        solution: 'Check endpoint implementation and server logs for errors.',
+        steps: [
+          'Review API server logs for errors',
+          'Check endpoint route definitions',
+          'Verify middleware configuration',
+          'Test endpoints individually',
+          'Check for CORS or network issues'
+        ],
+      });
+    }
+
+    // High latency warnings
+    const slowEndpoints = endpoints.filter(e => e.latency && e.latency > 1000);
+    if (slowEndpoints.length > 0) {
+      problems.push({
+        id: 'high-latency',
+        severity: 'warning',
+        title: 'High API Response Latency',
+        description: `Some endpoints are responding slowly: ${slowEndpoints.map(e => `${e.name} (${e.latency}ms)`).join(', ')}`,
+        component: 'Performance',
+        detectedAt: new Date(),
+        solution: 'Optimize endpoint performance and check database query performance.',
+        steps: [
+          'Check database query performance',
+          'Review endpoint implementation for bottlenecks',
+          'Check system resource usage (CPU, Memory)',
+          'Consider adding caching for frequently accessed data',
+          'Monitor performance metrics over time'
+        ],
+      });
+    }
+
+    return problems;
+  };
+
   const fetchDiagnostics = useCallback(async () => {
     setLoading(true);
-    const problems: string[] = [];
+    const problems: Problem[] = [];
     const insights: string[] = [];
 
     try {
@@ -104,7 +296,9 @@ export default function HomePage() {
         healthResult.status === 'unhealthy' ? 'error' : 'error';
 
       if (healthStatus === 'error') {
-        problems.push('Health endpoint is failing. The system may be down or unreachable.');
+        insights.push('Health endpoint is failing. The system may be down or unreachable.');
+      } else if (healthResult.data) {
+        insights.push('Health check passed. Core systems are operational.');
       }
 
       // 2. Check /ready endpoint
@@ -114,22 +308,21 @@ export default function HomePage() {
         readyResult.status === 'not_ready' ? 'warning' : 'error';
 
       if (readyStatus === 'error') {
-        problems.push('Ready endpoint is unreachable. Cannot determine if system is ready.');
+        insights.push('Ready endpoint is unreachable. Cannot determine if system is ready.');
       } else if (readyStatus === 'warning') {
-        problems.push('System is not ready. Dependencies may not be initialized.');
+        insights.push('System is not ready. Dependencies may not be initialized.');
+      } else {
+        insights.push('System is ready and accepting requests.');
       }
 
       // 3. Determine global status
       let globalStatus: SystemStatus = 'down';
       if (healthStatus === 'error') {
         globalStatus = 'down';
-        insights.push('System is DOWN: Health check failed. Core services are not responding.');
       } else if (readyStatus === 'error' || readyStatus === 'warning') {
-        globalStatus = 'not_ready';
-        insights.push('System is NOT READY: Health check passed but readiness check failed. System may be starting up or dependencies are unavailable.');
+        globalStatus = 'degraded';
       } else {
         globalStatus = 'operational';
-        insights.push('System is OPERATIONAL: Both health and readiness checks passed.');
       }
 
       // 4. Check plugins
@@ -137,40 +330,17 @@ export default function HomePage() {
       try {
         const pluginsResult = await ultraSecureApiClient.checkPlugins();
         if (pluginsResult.status === 'available' && pluginsResult.plugins) {
-          const requiredPlugins = ['store', 'supervisor', 'memory'];
-          const foundPlugins = pluginsResult.plugins.map((p: any) => 
-            (p.name || p.id || '').toLowerCase()
-          );
-
-          requiredPlugins.forEach(pluginName => {
-            const found = foundPlugins.some((name: string) => 
-              name.includes(pluginName) || name === pluginName
-            );
+          pluginsResult.plugins.forEach((p: any) => {
             pluginStatuses.push({
-              name: pluginName.charAt(0).toUpperCase() + pluginName.slice(1),
-              available: found,
-              error: found ? undefined : `Plugin not found in available plugins list`,
+              name: p.name || p.id || 'Unknown',
+              available: true,
+              status: p.health?.status || 'healthy',
+              details: p,
             });
-            if (!found) {
-              problems.push(`${pluginName.charAt(0).toUpperCase() + pluginName.slice(1)} plugin is not available.`);
-            }
           });
-        } else {
-          // If we can't fetch plugins, check health data for plugin info
-          if (healthResult.data?.checks) {
-            Object.keys(healthResult.data.checks).forEach(key => {
-              if (key.toLowerCase().includes('plugin')) {
-                pluginStatuses.push({
-                  name: key,
-                  available: healthResult.data.checks[key] === true,
-                  error: healthResult.data.checks[key] === false ? 'Plugin check failed' : undefined,
-                });
-              }
-            });
-          }
         }
       } catch (error) {
-        problems.push('Unable to check plugin status. Plugin endpoint may be unavailable.');
+        insights.push('Unable to check plugin status. Plugin endpoint may be unavailable.');
       }
 
       // 5. Check additional endpoints
@@ -180,7 +350,6 @@ export default function HomePage() {
         { name: 'Ready', path: '/ready' },
       ];
 
-      // Check metrics if available
       let metricsAvailable = false;
       try {
         const metricsResult = await ultraSecureApiClient.checkMetrics();
@@ -196,27 +365,18 @@ export default function HomePage() {
         endpointsToCheck.map(ep => checkEndpoint(ep.name, ep.path))
       );
 
-      // 6. Analyze health data for runtime info
-      if (healthResult.data?.checks) {
-        const checks = healthResult.data.checks;
-        if (checks.database === false) {
-          problems.push('Database connection is failing. Persistence layer may be unavailable.');
-        }
-        if (checks.redis === false) {
-          insights.push('Redis cache is unavailable. Performance may be degraded.');
-        }
-      }
+      // 6. Detect problems
+      const detectedProblems = detectProblems(
+        healthResult.data,
+        readyResult.data,
+        pluginStatuses,
+        endpointChecks
+      );
+      problems.push(...detectedProblems);
 
-      // 7. Analyze ready data for dependency info
-      if (readyResult.data) {
-        if (typeof readyResult.data === 'object') {
-          Object.entries(readyResult.data).forEach(([key, value]) => {
-            if (value === false && key.toLowerCase().includes('database')) {
-              problems.push('Database dependency is not ready. Migrations may not be applied or connection is failing.');
-            }
-          });
-        }
-      }
+      // 7. Extract additional info
+      const uptime = healthResult.data?.uptime;
+      const version = healthResult.data?.version;
 
       setDiagnostics({
         globalStatus,
@@ -229,6 +389,8 @@ export default function HomePage() {
         metricsAvailable,
         problems,
         insights,
+        uptime,
+        version,
       });
 
       setLastChecked(new Date());
@@ -238,7 +400,22 @@ export default function HomePage() {
         globalStatus: 'down',
         healthStatus: 'error',
         readyStatus: 'error',
-        problems: ['Failed to fetch system diagnostics. Check network connectivity and API base URL configuration.'],
+        problems: [{
+          id: 'connection-error',
+          severity: 'critical',
+          title: 'Connection Error',
+          description: 'Failed to connect to the API. Check network connectivity and API base URL configuration.',
+          component: 'Network',
+          detectedAt: new Date(),
+          solution: 'Verify API base URL is correct and service is running.',
+          steps: [
+            'Check NEXT_PUBLIC_API_BASE_URL environment variable',
+            'Verify API service is deployed and running',
+            'Check network connectivity',
+            'Review API service logs in Railway',
+            'Test API endpoint directly in browser'
+          ],
+        }],
       }));
     } finally {
       setLoading(false);
@@ -247,159 +424,374 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchDiagnostics();
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      setRefreshKey(prev => prev + 1);
-    }, 30000);
-    return () => clearInterval(interval);
   }, [fetchDiagnostics]);
 
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      setRefreshKey(prev => prev + 1);
+    }, 30000); // Auto-refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
+
+  // Stats calculation
+  const stats = useMemo<StatCard[]>(() => {
+    if (overviewLoading || !overview?.data) return [];
+
+    const data = overview.data;
+    return [
+      {
+        title: 'Total Orchestrations',
+        value: data.orchestrations?.total || 0,
+        change: data.orchestrations?.active || 0,
+        trend: 'up',
+        icon: <Activity className="h-5 w-5" />,
+        color: 'text-blue-400',
+        subtitle: `${data.orchestrations?.active || 0} active`,
+      },
+      {
+        title: 'Active Agents',
+        value: data.agents?.active || 0,
+        change: data.agents?.total || 0,
+        trend: 'up',
+        icon: <Brain className="h-5 w-5" />,
+        color: 'text-purple-400',
+        subtitle: `of ${data.agents?.total || 0} total`,
+      },
+      {
+        title: 'Requests/Min',
+        value: Math.round(data.performance?.requestsPerMinute || 0),
+        change: data.performance?.averageResponseTime || 0,
+        trend: data.performance?.requestsPerMinute > 10 ? 'up' : 'neutral',
+        icon: <TrendingUp className="h-5 w-5" />,
+        color: 'text-emerald-400',
+        subtitle: `${Math.round(data.performance?.averageResponseTime || 0)}ms avg`,
+      },
+      {
+        title: 'Monthly Cost',
+        value: `$${(data.costs?.thisMonth || 0).toFixed(2)}`,
+        change: ((data.costs?.thisMonth || 0) - (data.costs?.total || 0)),
+        trend: 'neutral',
+        icon: <DollarSign className="h-5 w-5" />,
+        color: 'text-amber-400',
+        subtitle: `Total: $${(data.costs?.total || 0).toFixed(2)}`,
+      },
+    ];
+  }, [overview, overviewLoading]);
+
   const getSystemStatusBadge = (status: SystemStatus) => {
-    switch (status) {
-      case 'operational':
-        return (
-          <Badge variant="success" className="text-base px-5 py-2 font-semibold shadow-lg shadow-emerald-500/20">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 status-pulse"></div>
-              OPERATIONAL
-            </div>
-          </Badge>
-        );
-      case 'not_ready':
-        return (
-          <Badge variant="warning" className="text-base px-5 py-2 font-semibold shadow-lg shadow-amber-500/20">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></div>
-              NOT READY
-            </div>
-          </Badge>
-        );
-      case 'down':
-        return (
-          <Badge variant="error" className="text-base px-5 py-2 font-semibold shadow-lg shadow-red-500/20">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse"></div>
-              DOWN
-            </div>
-          </Badge>
-        );
-      default:
-        return <Badge variant="warning" className="text-base px-4 py-1.5">UNKNOWN</Badge>;
-    }
+    const configs = {
+      operational: {
+        bg: 'bg-emerald-500/20 border-emerald-500/30',
+        text: 'text-emerald-400',
+        label: 'OPERATIONAL',
+        icon: <CheckCircle2 className="h-4 w-4" />,
+        pulse: 'status-pulse',
+      },
+      degraded: {
+        bg: 'bg-amber-500/20 border-amber-500/30',
+        text: 'text-amber-400',
+        label: 'DEGRADED',
+        icon: <AlertTriangle className="h-4 w-4" />,
+        pulse: 'animate-pulse',
+      },
+      critical: {
+        bg: 'bg-red-500/20 border-red-500/30',
+        text: 'text-red-400',
+        label: 'CRITICAL',
+        icon: <XCircle className="h-4 w-4" />,
+        pulse: 'animate-pulse',
+      },
+      down: {
+        bg: 'bg-red-500/20 border-red-500/30',
+        text: 'text-red-400',
+        label: 'DOWN',
+        icon: <XCircle className="h-4 w-4" />,
+        pulse: 'animate-pulse',
+      },
+    };
+
+    const config = configs[status];
+    return (
+      <Badge className={`${config.bg} ${config.text} text-base px-5 py-2 font-semibold shadow-lg border flex items-center gap-2`}>
+        <div className={`w-2 h-2 rounded-full ${config.text.replace('text-', 'bg-')} ${config.pulse}`}></div>
+        {config.icon}
+        {config.label}
+      </Badge>
+    );
   };
 
-  const getStatusIcon = (status: CheckStatus) => {
-    switch (status) {
-      case 'success':
-        return <CheckCircle2 className="h-6 w-6 text-emerald-400" />;
+  const getSeverityIcon = (severity: Severity) => {
+    switch (severity) {
+      case 'critical':
+        return <XCircle className="h-5 w-5 text-red-400" />;
       case 'warning':
-        return <AlertTriangle className="h-6 w-6 text-amber-400" />;
-      case 'error':
-        return <XCircle className="h-6 w-6 text-red-400" />;
-      case 'loading':
-        return <Clock className="h-6 w-6 text-slate-400 animate-spin" />;
-    }
-  };
-
-  const getStatusColor = (status: CheckStatus) => {
-    switch (status) {
+        return <AlertTriangle className="h-5 w-5 text-amber-400" />;
+      case 'info':
+        return <Info className="h-5 w-5 text-blue-400" />;
       case 'success':
-        return 'text-emerald-400';
-      case 'warning':
-        return 'text-amber-400';
-      case 'error':
-        return 'text-red-400';
-      case 'loading':
-        return 'text-slate-400';
+        return <CheckCircle2 className="h-5 w-5 text-emerald-400" />;
     }
   };
 
-  const getSystemStatusExplanation = (status: SystemStatus) => {
-    switch (status) {
-      case 'operational':
-        return 'All core systems are healthy and ready to process requests.';
-      case 'not_ready':
-        return 'System is running but not ready. Dependencies may be initializing or unavailable.';
-      case 'down':
-        return 'System is down. Core services are not responding. Check server status and logs.';
+  const getSeverityColor = (severity: Severity) => {
+    switch (severity) {
+      case 'critical':
+        return 'from-red-500/20 to-red-500/10 border-red-500/30';
+      case 'warning':
+        return 'from-amber-500/20 to-amber-500/10 border-amber-500/30';
+      case 'info':
+        return 'from-blue-500/20 to-blue-500/10 border-blue-500/30';
+      case 'success':
+        return 'from-emerald-500/20 to-emerald-500/10 border-emerald-500/30';
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white relative overflow-hidden">
-      {/* Animated background elements */}
+      {/* Animated background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-3xl"></div>
       </div>
 
       <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
         {/* Header */}
-        <div className="mb-10 fade-in">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl backdrop-blur-sm border border-blue-500/30">
-              <Sparkles className="h-7 w-7 text-blue-400" />
+        <div className="mb-8 fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl backdrop-blur-sm border border-blue-500/30">
+                <Sparkles className="h-8 w-8 text-blue-400" />
+              </div>
+              <div>
+                <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent">
+                  AI Execution Platform
+                </h1>
+                <p className="text-slate-400 text-lg mt-1">Real-time System Health & Performance Dashboard</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent">
-                AI Execution Platform
-              </h1>
-              <p className="text-slate-400 text-lg mt-1">Real-time System Health Dashboard</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={`px-4 py-2 rounded-lg border transition-all ${
+                  autoRefresh
+                    ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
+                    : 'bg-slate-800/50 border-slate-700 text-slate-400'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <RefreshCw className={`h-4 w-4 ${autoRefresh ? 'animate-spin' : ''}`} />
+                  Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
+                </div>
+              </button>
+              <button
+                onClick={() => setRefreshKey(prev => prev + 1)}
+                disabled={loading}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all flex items-center gap-2 shadow-lg"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
             </div>
           </div>
+
+          {/* Global Status Hero Card */}
+          <Card className="glass-effect border-slate-700/50 shadow-2xl fade-in mb-6">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-emerald-500/20 to-blue-500/20 rounded-xl border border-emerald-500/30">
+                    <Activity className="h-6 w-6 text-emerald-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-3xl font-bold">System Status</CardTitle>
+                    <CardDescription className="text-slate-300 mt-1 text-base">
+                      {loading ? 'Evaluating system state...' : 
+                       diagnostics.globalStatus === 'operational' ? 'All systems operational and healthy' :
+                       diagnostics.globalStatus === 'degraded' ? 'System operational with degraded performance' :
+                       diagnostics.globalStatus === 'critical' ? 'Critical issues detected - immediate attention required' :
+                       'System is down - core services not responding'}
+                    </CardDescription>
+                  </div>
+                </div>
+                {loading ? (
+                  <Badge variant="warning" className="text-base px-5 py-2">
+                    <Clock className="h-4 w-4 mr-2 animate-spin" />
+                    Checking...
+                  </Badge>
+                ) : (
+                  getSystemStatusBadge(diagnostics.globalStatus)
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="group flex items-center gap-4 p-5 bg-gradient-to-br from-slate-900/80 to-slate-800/80 rounded-xl border border-slate-700/50 hover:border-emerald-500/50 transition-all duration-300">
+                  <div className={`p-3 rounded-lg ${diagnostics.healthStatus === 'success' ? 'bg-emerald-500/20' : diagnostics.healthStatus === 'error' ? 'bg-red-500/20' : 'bg-amber-500/20'}`}>
+                    {diagnostics.healthStatus === 'success' ? (
+                      <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                    ) : diagnostics.healthStatus === 'error' ? (
+                      <XCircle className="h-6 w-6 text-red-400" />
+                    ) : (
+                      <Clock className="h-6 w-6 text-amber-400 animate-spin" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-lg mb-1">Health Check</div>
+                    <div className={`text-sm font-medium ${
+                      diagnostics.healthStatus === 'success' ? 'text-emerald-400' :
+                      diagnostics.healthStatus === 'error' ? 'text-red-400' : 'text-amber-400'
+                    }`}>
+                      {diagnostics.healthStatus === 'success' ? 'All systems healthy' :
+                       diagnostics.healthStatus === 'error' ? 'System unhealthy' : 'Checking status...'}
+                    </div>
+                    {diagnostics.uptime && (
+                      <div className="text-xs text-slate-400 mt-1">Uptime: {Math.floor(diagnostics.uptime / 3600)}h {(Math.floor(diagnostics.uptime / 60) % 60)}m</div>
+                    )}
+                  </div>
+                </div>
+                <div className="group flex items-center gap-4 p-5 bg-gradient-to-br from-slate-900/80 to-slate-800/80 rounded-xl border border-slate-700/50 hover:border-amber-500/50 transition-all duration-300">
+                  <div className={`p-3 rounded-lg ${diagnostics.readyStatus === 'success' ? 'bg-emerald-500/20' : diagnostics.readyStatus === 'error' ? 'bg-red-500/20' : 'bg-amber-500/20'}`}>
+                    {diagnostics.readyStatus === 'success' ? (
+                      <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                    ) : diagnostics.readyStatus === 'error' ? (
+                      <XCircle className="h-6 w-6 text-red-400" />
+                    ) : (
+                      <Clock className="h-6 w-6 text-amber-400 animate-spin" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-lg mb-1">Readiness Check</div>
+                    <div className={`text-sm font-medium ${
+                      diagnostics.readyStatus === 'success' ? 'text-emerald-400' :
+                      diagnostics.readyStatus === 'error' ? 'text-red-400' : 'text-amber-400'
+                    }`}>
+                      {diagnostics.readyStatus === 'success' ? 'Ready for requests' :
+                       diagnostics.readyStatus === 'warning' ? 'Not ready yet' :
+                       diagnostics.readyStatus === 'error' ? 'Readiness check failed' : 'Checking status...'}
+                    </div>
+                    {diagnostics.version && (
+                      <div className="text-xs text-slate-400 mt-1">Version: {diagnostics.version}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="group flex items-center gap-4 p-5 bg-gradient-to-br from-slate-900/80 to-slate-800/80 rounded-xl border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300">
+                  <div className="p-3 rounded-lg bg-blue-500/20">
+                    <Server className="h-6 w-6 text-blue-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-lg mb-1">API Endpoints</div>
+                    <div className="text-sm font-medium text-slate-300">
+                      {diagnostics.endpoints.filter(e => e.status === 'success').length} / {diagnostics.endpoints.length} online
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">
+                      Avg latency: {Math.round(diagnostics.endpoints.reduce((acc, e) => acc + (e.latency || 0), 0) / (diagnostics.endpoints.length || 1))}ms
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Global System Status - Hero Card */}
-        <Card className="mb-8 glass-effect border-slate-700/50 shadow-2xl fade-in">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-br from-emerald-500/20 to-blue-500/20 rounded-xl border border-emerald-500/30">
-                  <Activity className="h-6 w-6 text-emerald-400" />
+        {/* Stats Grid */}
+        {!overviewLoading && stats.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 fade-in">
+            {stats.map((stat, idx) => (
+              <Card key={idx} className="glass-effect border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-slate-400">{stat.title}</CardTitle>
+                  <div className={stat.color}>{stat.icon}</div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                  {stat.subtitle && (
+                    <p className="text-xs text-slate-400 mt-1">{stat.subtitle}</p>
+                  )}
+                  {stat.change !== undefined && (
+                    <div className={`flex items-center text-xs mt-2 ${
+                      stat.trend === 'up' ? 'text-emerald-400' :
+                      stat.trend === 'down' ? 'text-red-400' : 'text-slate-400'
+                    }`}>
+                      {stat.trend === 'up' ? <ArrowUpRight className="h-3 w-3 mr-1" /> :
+                       stat.trend === 'down' ? <ArrowDownRight className="h-3 w-3 mr-1" /> :
+                       <Minus className="h-3 w-3 mr-1" />}
+                      {typeof stat.change === 'number' ? `${stat.change > 0 ? '+' : ''}${stat.change}` : stat.change}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Problems & Solutions - Intelligent Troubleshooting */}
+        {diagnostics.problems.length > 0 && (
+          <Card className="glass-effect border-slate-700/50 shadow-xl mb-6 fade-in">
+            <CardHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-lg border border-red-500/30">
+                  <AlertCircle className="h-6 w-6 text-red-400" />
                 </div>
                 <div>
-                  <CardTitle className="text-3xl font-bold">Global System Status</CardTitle>
-                  <CardDescription className="text-slate-300 mt-1 text-base">
-                    {loading ? 'Evaluating system state...' : getSystemStatusExplanation(diagnostics.globalStatus)}
+                  <CardTitle className="text-2xl font-bold">Intelligent Problem Detection</CardTitle>
+                  <CardDescription className="text-slate-300">
+                    {diagnostics.problems.length} {diagnostics.problems.length === 1 ? 'issue' : 'issues'} detected with solutions
                   </CardDescription>
                 </div>
               </div>
-              {loading ? (
-                <Badge variant="warning" className="text-base px-5 py-2">Checking...</Badge>
-              ) : (
-                getSystemStatusBadge(diagnostics.globalStatus)
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="group flex items-center gap-4 p-5 bg-gradient-to-br from-slate-900/80 to-slate-800/80 rounded-xl border border-slate-700/50 hover:border-emerald-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/10">
-                {getStatusIcon(diagnostics.healthStatus)}
-                <div className="flex-1">
-                  <div className="font-semibold text-lg mb-1">Health Check</div>
-                  <div className={`text-sm font-medium ${getStatusColor(diagnostics.healthStatus)}`}>
-                    {diagnostics.healthStatus === 'success' ? 'All systems healthy' :
-                     diagnostics.healthStatus === 'error' ? 'System unhealthy' : 'Checking status...'}
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {diagnostics.problems.map((problem) => (
+                  <div
+                    key={problem.id}
+                    className={`p-6 bg-gradient-to-r ${getSeverityColor(problem.severity)} rounded-xl border hover:shadow-lg transition-all`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="mt-1">{getSeverityIcon(problem.severity)}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-lg font-semibold text-white">{problem.title}</h4>
+                          <Badge variant={problem.severity === 'critical' ? 'error' : problem.severity === 'warning' ? 'warning' : 'default'}>
+                            {problem.severity.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-slate-300 mb-3">{problem.description}</p>
+                        <div className="mb-3">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-emerald-400 mb-2">
+                            <Lightbulb className="h-4 w-4" />
+                            Solution
+                          </div>
+                          <p className="text-sm text-slate-200 mb-3">{problem.solution}</p>
+                          <div className="flex items-center gap-2 text-sm font-semibold text-blue-400 mb-2">
+                            <ListChecks className="h-4 w-4" />
+                            Resolution Steps
+                          </div>
+                          <ol className="list-decimal list-inside space-y-1 text-sm text-slate-300">
+                            {problem.steps.map((step, idx) => (
+                              <li key={idx}>{step}</li>
+                            ))}
+                          </ol>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-400 mt-3 pt-3 border-t border-slate-700/50">
+                          <Settings className="h-3 w-3" />
+                          <span>Component: {problem.component}</span>
+                          <span className="mx-2">•</span>
+                          <Clock className="h-3 w-3" />
+                          <span>Detected: {problem.detectedAt.toLocaleTimeString()}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
-              <div className="group flex items-center gap-4 p-5 bg-gradient-to-br from-slate-900/80 to-slate-800/80 rounded-xl border border-slate-700/50 hover:border-amber-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/10">
-                {getStatusIcon(diagnostics.readyStatus)}
-                <div className="flex-1">
-                  <div className="font-semibold text-lg mb-1">Readiness Check</div>
-                  <div className={`text-sm font-medium ${getStatusColor(diagnostics.readyStatus)}`}>
-                    {diagnostics.readyStatus === 'success' ? 'Ready for requests' :
-                     diagnostics.readyStatus === 'warning' ? 'Not ready yet' :
-                     diagnostics.readyStatus === 'error' ? 'Readiness check failed' : 'Checking status...'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Status Cards Grid */}
+        {/* System Components Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Core Runtime Health */}
           <Card className="glass-effect border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 fade-in">
@@ -423,7 +815,7 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-emerald-500/30 transition-all">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50">
                     <div className="flex items-center gap-3">
                       {diagnostics.healthStatus === 'success' ? (
                         <CheckCircle2 className="h-5 w-5 text-emerald-400" />
@@ -436,7 +828,7 @@ export default function HomePage() {
                       {diagnostics.healthStatus === 'success' ? 'Active' : 'Inactive'}
                     </Badge>
                   </div>
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-amber-500/30 transition-all">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50">
                     <div className="flex items-center gap-3">
                       {diagnostics.readyStatus === 'success' ? (
                         <CheckCircle2 className="h-5 w-5 text-emerald-400" />
@@ -449,17 +841,17 @@ export default function HomePage() {
                       {diagnostics.readyStatus === 'success' ? 'Active' : 'Degraded'}
                     </Badge>
                   </div>
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-red-500/30 transition-all">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50">
                     <div className="flex items-center gap-3">
-                      {diagnostics.problems.length === 0 ? (
+                      {diagnostics.problems.filter(p => p.severity === 'critical').length === 0 ? (
                         <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                       ) : (
                         <XCircle className="h-5 w-5 text-red-400" />
                       )}
                       <span className="font-medium">Runtime Exceptions</span>
                     </div>
-                    <Badge variant={diagnostics.problems.length === 0 ? 'success' : 'error'}>
-                      {diagnostics.problems.length === 0 ? 'None' : `${diagnostics.problems.length} issues`}
+                    <Badge variant={diagnostics.problems.filter(p => p.severity === 'critical').length === 0 ? 'success' : 'error'}>
+                      {diagnostics.problems.filter(p => p.severity === 'critical').length === 0 ? 'None' : `${diagnostics.problems.filter(p => p.severity === 'critical').length} critical`}
                     </Badge>
                   </div>
                 </div>
@@ -481,7 +873,7 @@ export default function HomePage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {loading || pluginsLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map(i => (
                     <div key={i} className="h-14 bg-slate-900/50 rounded-lg animate-pulse shimmer" />
@@ -489,18 +881,18 @@ export default function HomePage() {
                 </div>
               ) : diagnostics.plugins.length > 0 ? (
                 <div className="space-y-3">
-                  {diagnostics.plugins.map((plugin: PluginStatus, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-purple-500/30 transition-all">
+                  {diagnostics.plugins.map((plugin, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50">
                       <div className="flex items-center gap-3">
-                        {plugin.available ? (
+                        {plugin.available && plugin.status !== 'critical' ? (
                           <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                         ) : (
                           <XCircle className="h-5 w-5 text-red-400" />
                         )}
-                        <span className="font-medium">{plugin.name} Plugin</span>
+                        <span className="font-medium">{plugin.name}</span>
                       </div>
-                      <Badge variant={plugin.available ? 'success' : 'error'}>
-                        {plugin.available ? 'Available' : 'Missing'}
+                      <Badge variant={plugin.available && plugin.status !== 'critical' ? 'success' : 'error'}>
+                        {plugin.status || (plugin.available ? 'Available' : 'Missing')}
                       </Badge>
                     </div>
                   ))}
@@ -535,7 +927,7 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-cyan-500/30 transition-all">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50">
                     <div className="flex items-center gap-3">
                       {diagnostics.readyStatus === 'success' ? (
                         <CheckCircle2 className="h-5 w-5 text-emerald-400" />
@@ -548,7 +940,20 @@ export default function HomePage() {
                       {diagnostics.readyStatus === 'success' ? 'Connected' : 'Unreachable'}
                     </Badge>
                   </div>
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-cyan-500/30 transition-all">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50">
+                    <div className="flex items-center gap-3">
+                      {diagnostics.healthData?.checks?.redis !== false ? (
+                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                      ) : (
+                        <AlertTriangle className="h-5 w-5 text-amber-400" />
+                      )}
+                      <span className="font-medium">Redis Cache</span>
+                    </div>
+                    <Badge variant={diagnostics.healthData?.checks?.redis !== false ? 'success' : 'warning'}>
+                      {diagnostics.healthData?.checks?.redis !== false ? 'Connected' : 'Unavailable'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50">
                     <div className="flex items-center gap-3">
                       {diagnostics.readyStatus === 'success' ? (
                         <CheckCircle2 className="h-5 w-5 text-emerald-400" />
@@ -561,19 +966,6 @@ export default function HomePage() {
                       {diagnostics.readyStatus === 'success' ? 'Up to date' : 'Unknown'}
                     </Badge>
                   </div>
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 rounded-lg border border-slate-700/50 hover:border-cyan-500/30 transition-all">
-                    <div className="flex items-center gap-3">
-                      {diagnostics.readyStatus === 'success' ? (
-                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                      ) : (
-                        <XCircle className="h-5 w-5 text-red-400" />
-                      )}
-                      <span className="font-medium">Persistence Layer</span>
-                    </div>
-                    <Badge variant={diagnostics.readyStatus === 'success' ? 'success' : 'error'}>
-                      {diagnostics.readyStatus === 'success' ? 'Responding' : 'Not responding'}
-                    </Badge>
-                  </div>
                 </div>
               )}
             </CardContent>
@@ -584,7 +976,7 @@ export default function HomePage() {
             <CardHeader>
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-lg border border-emerald-500/30">
-                  <TrendingUp className="h-5 w-5 text-emerald-400" />
+                  <Network className="h-5 w-5 text-emerald-400" />
                 </div>
                 <CardTitle className="text-xl font-bold">API Surface</CardTitle>
               </div>
@@ -611,7 +1003,7 @@ export default function HomePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {diagnostics.endpoints.map((endpoint: EndpointCheck, idx: number) => (
+                      {diagnostics.endpoints.map((endpoint, idx) => (
                         <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-900/30 transition-colors">
                           <td className="p-4 font-medium">{endpoint.name}</td>
                           <td className="p-4 text-slate-400 font-mono text-sm">{endpoint.path}</td>
@@ -684,79 +1076,31 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        {/* Problems & Insights */}
-        {(diagnostics.problems.length > 0 || diagnostics.insights.length > 0) && (
-          <Card className="mb-6 glass-effect border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 fade-in">
+        {/* Insights */}
+        {diagnostics.insights.length > 0 && (
+          <Card className="mb-6 glass-effect border-slate-700/50 shadow-xl fade-in">
             <CardHeader>
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-lg border border-red-500/30">
-                  <AlertCircle className="h-5 w-5 text-red-400" />
+                <div className="p-2 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-lg border border-blue-500/30">
+                  <Lightbulb className="h-5 w-5 text-blue-400" />
                 </div>
-                <CardTitle className="text-xl font-bold">Problems & Insights</CardTitle>
+                <CardTitle className="text-xl font-bold">System Insights</CardTitle>
               </div>
-              <CardDescription className="text-slate-300">
-                System issues and diagnostic information
-              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {diagnostics.problems.length > 0 && (
-                  <div>
-                    <h4 className="text-red-400 font-semibold mb-3 flex items-center gap-2 text-lg">
-                      <XCircle className="h-5 w-5" />
-                      Problems ({diagnostics.problems.length})
-                    </h4>
-                    <ul className="space-y-2">
-                      {diagnostics.problems.map((problem: string, idx: number) => (
-                        <li key={idx} className="p-4 bg-gradient-to-r from-red-500/10 to-red-500/5 border border-red-500/30 rounded-lg text-sm text-red-200 hover:border-red-500/50 transition-all">
-                          {problem}
-                        </li>
-                      ))}
-                    </ul>
+              <div className="space-y-2">
+                {diagnostics.insights.map((insight, idx) => (
+                  <div key={idx} className="p-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-lg text-sm text-blue-200">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>{insight}</span>
+                    </div>
                   </div>
-                )}
-                {diagnostics.insights.length > 0 && (
-                  <div>
-                    <h4 className="text-amber-400 font-semibold mb-3 flex items-center gap-2 text-lg">
-                      <AlertTriangle className="h-5 w-5" />
-                      Insights
-                    </h4>
-                    <ul className="space-y-2">
-                      {diagnostics.insights.map((insight: string, idx: number) => (
-                        <li key={idx} className="p-4 bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/30 rounded-lg text-sm text-amber-200 hover:border-amber-500/50 transition-all">
-                          {insight}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                ))}
               </div>
             </CardContent>
           </Card>
         )}
-
-        {/* Refresh Button */}
-        <div className="flex justify-center mb-8">
-          <button
-            onClick={() => {
-              setRefreshKey((prev: number) => prev + 1);
-            }}
-            disabled={loading}
-            className="group px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all duration-300 flex items-center gap-3 shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:scale-105 disabled:hover:scale-100"
-          >
-            {loading ? (
-              <>
-                <Clock className="h-5 w-5 animate-spin" />
-                Checking Status...
-              </>
-            ) : (
-              <>
-                <Activity className="h-5 w-5 group-hover:rotate-180 transition-transform duration-500" />
-                Refresh Status
-              </>
-            )}
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -7,6 +7,14 @@ const nextConfig = {
   env: {
     PORT: process.env.PORT || '3000',
   },
+  // Ensure static files are included in standalone build
+  experimental: {
+    outputFileTracingIncludes: {
+      '/**': ['./.next/static/**/*'],
+    },
+  },
+  // Generate proper source maps for debugging (optional)
+  productionBrowserSourceMaps: false,
 };
 
 module.exports = nextConfig;

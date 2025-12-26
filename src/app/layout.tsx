@@ -6,13 +6,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="description" content="AI Execution Platform - Real-time System Health & Performance Dashboard" />
         <title>AI Execution Platform Dashboard</title>
+        <link rel="icon" href="/favicon.ico" />
       </head>
-      <body>{children}</body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }
